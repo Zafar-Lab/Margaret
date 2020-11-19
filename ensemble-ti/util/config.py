@@ -54,16 +54,8 @@ def get_optimizer(name, net, lr, **kwargs):
 
 def get_loss(name, **kwargs):
     weight = None
-    if name == 'maskedbce':
-        loss = MaskedBCEWithLogitsLoss(**kwargs)
-    elif name == 'ohemmaskedbce':
-        loss = OhemMaskedBCEWithLogitsLoss(**kwargs)
-    elif name == 'maskedmargin':
-        loss = MaskedMarginLoss(**kwargs)
-    elif name == 'maskedmse':
-        loss = MaskedMSELoss(**kwargs)
-    elif name == 'maskedl1':
-        loss = MaskedMSELoss(**kwargs)
+    if name == 'mse':
+        loss = nn.MSELoss(**kwargs)
     else:
         raise NotImplementedError(f'The loss {name} has not been implemented yet!')
     return loss

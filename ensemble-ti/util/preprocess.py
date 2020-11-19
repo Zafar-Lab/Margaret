@@ -20,20 +20,20 @@ def preprocess_recipe(data, min_expr_level=1000, min_cells=10, use_hvg=True, n_t
     print(f'\t->Removed genes expressed in <{min_cells} cells')
 
     # Library size normalization and Log counts
-    sc.pp.normalize_total(data)
-    log_transform(data)
+    # sc.pp.normalize_total(data)
+    # log_transform(data)
     print('\t->Normalized data')
 
     # Select highly variable genes (hvg)
     if use_hvg:
-        sc.pp.highly_variable_genes(data, n_top_genes=n_top_genes, flavor='cell_ranger')
+        sc.pp.highly_variable_genes(data, n_top_genes=n_top_genes, flavor='seurat_v3', subset=True)
         # Re-Normalization to account for hvg selection
         sc.pp.normalize_total(data)
-        log_transform(data)
+        # log_transform(data)
         print(f'\t->Selected the top {n_top_genes} genes and re-normalized')
     
-    sc.pp.scale(data)
-    print(f'\t->Scaled features to have zero mean and unit variance')
+    # sc.pp.scale(data)
+    # print(f'\t->Scaled features to have zero mean and unit variance')
     print(f'Pre-processing complete. Updated data shape: {data.shape}')
     return data
 

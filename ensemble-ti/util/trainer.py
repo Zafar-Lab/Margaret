@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from util.config import configure_device, get_loss, get_lr_scheduler, get_optimizer
 
 
-class Trainer:
+class UnsupervisedTrainer:
     def __init__(self, train_dataset, model, train_loss, val_dataset=None, lr_scheduler='poly',
         num_epochs=100, batch_size=32, lr=0.01, eval_loss=None, log_step=10, optimizer='SGD',
         backend='gpu', random_state=0, optimizer_kwargs={}, lr_scheduler_kwargs={}, **kwargs
@@ -75,34 +75,10 @@ class Trainer:
                     self.save(save_path, epoch_idx)
 
     def eval(self):
-        self.model.eval()
-        eval_loss = 0
-        with torch.no_grad():
-            for idx, (data_batch, target_batch) in enumerate(self.val_loader):
-                self.optimizer.zero_grad()
-                data_batch = data_batch.to(self.device)
-                target_batch = target_batch.to(self.device)
-                predictions = self.model(data_batch).squeeze()
-                loss = self.val_criterion(predictions, target_batch)
-                eval_loss += loss.item()
-        return eval_loss / len(self.val_loader)
+        raise NotImplementedError()
 
     def train_one_epoch(self):
-        self.model.train()
-        epoch_loss = 0
-        tk0 = tqdm(self.train_loader)
-        for idx, (data_batch, target_batch) in enumerate(tk0):
-            self.optimizer.zero_grad()
-            data_batch = data_batch.to(self.device)
-            target_batch = target_batch.to(self.device)
-            predictions = self.model(data_batch).squeeze()
-            loss = self.train_criterion(predictions, target_batch)
-            loss.backward()
-            self.optimizer.step()
-            epoch_loss += loss.item()
-            if idx % self.log_step == 0:
-                tk0.set_postfix_str(f'Loss at step {idx + 1}: {loss.item()}')
-        return epoch_loss / len(self.train_loader)
+        raise NotImplementedError()
 
     def save(self, path, epoch_id, prefix=''):
         checkpoint_name = f'chkpt_{epoch_id}'
@@ -153,7 +129,7 @@ class Trainer:
             self.lr_scheduler.load_state_dict(state_dict['scheduler'])
 
 
-class VAETrainer(Trainer):
+class VAETrainer(UnsupervisedTrainer):
     def train_one_epoch(self):
         self.model.train()
         epoch_loss = 0
@@ -161,6 +137,7 @@ class VAETrainer(Trainer):
         for idx, (data_batch, _) in enumerate(tk0):
             self.optimizer.zero_grad()
             data_batch = data_batch.to(self.device)
+            data_batch = data_batch.reshape(-1, 784)
             _, predictions, mu, logvar = self.model(data_batch)
             loss = self.train_criterion(data_batch, predictions, mu, logvar)
             loss.backward()
@@ -177,7 +154,25 @@ class VAETrainer(Trainer):
             for idx, (data_batch, _) in enumerate(self.val_loader):
                 self.optimizer.zero_grad()
                 data_batch = data_batch.to(self.device)
-                _, predictions, mu, logvar = self.model(img_batch)
+                _, predictions, mu, logvar = self.model(data_batch)
                 loss = self.val_criterion(data_batch, predictions)
                 eval_loss += loss.item()
         return eval_loss / len(self.val_loader)
+
+
+class DAETrainer(UnsupervisedTrainer):
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        tk0 = tqdm(self.train_loader)
+        for idx, (data_batch, _) in enumerate(tk0):
+            self.optimizer.zero_grad()
+            data_batch = data_batch.to(self.device)
+            predictions = self.model(data_batch)
+            loss = self.train_criterion(data_batch, predictions)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
+            if idx % self.log_step == 0:
+                tk0.set_postfix_str(f'Loss at step {idx + 1}: {loss.item()}')
+        return epoch_loss/ len(self.train_loader)

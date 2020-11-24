@@ -1,15 +1,19 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import scanpy as sc
+import scanpy.external as sce
 import torch
 import torchvision
 import torchvision.transforms as T
+import scvi
+
+from sklearn.manifold import TSNE
+from dca.api import dca
 
 from datasets.np import NpDataset
 from models.vae import VAE
 from models.dae import DAE
-from util.preprocess import preprocess_recipe, run_pca
-from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
+from utils.preprocess import preprocess_recipe, run_pca
 
 
 random_seed = 0
@@ -19,47 +23,63 @@ torch.manual_seed(random_seed)
 
 # Load data
 data_path = '/home/lexent/ensemble-ti/ensemble-ti/data/marrow_sample_scseq_counts.csv'
-data = sc.read(data_path, first_column_names=True)
+adata = sc.read(data_path, first_column_names=True)
 
-# Preprocess data
-min_expr_level = 1000
-min_cells = 50
-use_hvg = True
-n_top_genes = 500
-preprocessed_data = preprocess_recipe(
-    data, 
-    min_expr_level=min_expr_level, 
-    min_cells=min_cells,
-    use_hvg=use_hvg, 
-    n_top_genes=n_top_genes
-)
+# adata = anndata.read_h5ad(path_to_anndata)
+# scvi.data.setup_anndata(adata)
+# vae = scvi.model.SCVI(adata)
+# vae.train()
+# adata.obsm["X_scVI"] = vae.get_latent_representation()
+# adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+# print(adata.obsm["X_scVI"])
 
-# Apply PCA as a preprocessing step
-variance = 0.85
-X_pca, variance = run_pca(preprocessed_data, use_hvg=True, variance=variance)
-X_pca = preprocessed_data.X
-# Train a VAE on the input data
-# train_dataset = NpDataset(X_pca)
 
-transforms = T.Compose([
-    T.ToTensor()
-])
-mnist_data = torchvision.datasets.MNIST('data/', transform=transforms, download=True)
+# # Preprocessing and MAGIC Denoising
+# min_expr_level = 1000
+# min_cells = 10
+# use_hvg = True
+# n_top_genes = 1500
+# preprocessed_data = preprocess_recipe(
+#     data, 
+#     min_expr_level=min_expr_level, 
+#     min_cells=min_cells,
+#     use_hvg=use_hvg,
+#     n_top_genes=n_top_genes
+# )
 
-state_dict = torch.load('/home/lexent/ensemble_data/chkpt_20.pt')
+# print('Computing PCA...')
+# X_pca, _, n_comps = run_pca(preprocessed_data, use_hvg=use_hvg)
+# print(f'PCA computed: {X_pca.shape}')
 
-model = VAE(784, code_size=5)
-model.load_state_dict(state_dict['model'])
-model.eval()
-embeddings = []
-with torch.no_grad():
-    for data, _ in mnist_data:
-        data = data.reshape(784, )
-        embedding = model.encode(data.unsqueeze(0))
-        embeddings.append(embedding.squeeze().numpy())
+dca(adata, mode='latent')
 
-embeddings = np.array(embeddings)
+# # Perform MAGIC Imputation
+# print('Resolving Dropouts. Magic Imputation')
+# sce.pp.magic(preprocessed_data, random_state=random_seed, n_pca=300, name_list='pca_only')
 
-# X_embedded = TSNE(n_components=2).fit_transform(embeddings)
+# X_magic = preprocessed_data.obsm['X_magic']
+# # X_magic = preprocessed_data.X
+# print(X_magic.shape)
+
+# X_train = X_magic
+# train_dataset = NpDataset(X_train)
+# transforms = T.Compose([
+#     T.ToTensor()
+# ])
+
+# state_dict = torch.load('/home/lexent/ensemble_data/chkpt_140.pt')
+
+# model = VAE(X_train.shape[-1], code_size=5)
+# model.load_state_dict(state_dict['model'])
+# model.eval()
+# embeddings = []
+# with torch.no_grad():
+#     for data in train_dataset:
+#         embedding, _, _, _ = model(data.unsqueeze(0))
+#         embeddings.append(embedding.squeeze().numpy())
+
+# embeddings = np.array(embeddings)
+
+X_embedded = TSNE(n_components=2, perplexity=150).fit_transform(adata.obsm["X_scVI"])
 plt.scatter(embeddings[:, 0], embeddings[:, 1])
 plt.show()

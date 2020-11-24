@@ -10,8 +10,8 @@ class VAE(nn.Module):
         self.relu = nn.ReLU()
 
         # Encoder architecture
-        self.enc_fc1 = nn.Linear(self.infeatures, 128)
-        self.enc_bn1 = nn.BatchNorm1d(128)
+        self.enc_fc1 = nn.Linear(self.infeatures, 64)
+        self.enc_bn1 = nn.BatchNorm1d(64)
 
         # self.enc_fc2 = nn.Linear(512, 256)
         # self.enc_bn2 = nn.BatchNorm1d(256)
@@ -19,16 +19,16 @@ class VAE(nn.Module):
         # self.enc_fc3 = nn.Linear(256, 128)
         # self.enc_bn3 = nn.BatchNorm1d(128)
 
-        self.enc_fc41 = nn.Linear(128, self.code_size)
-        self.enc_fc42 = nn.Linear(128, self.code_size)
+        self.enc_fc41 = nn.Linear(64, self.code_size)
+        self.enc_fc42 = nn.Linear(64, self.code_size)
         self.dropout = nn.Dropout(0.1)
 
         # Decoder Architecture
-        self.dec_fc1 = nn.Linear(self.code_size, 128)
-        self.dec_bn1 = nn.BatchNorm1d(128)
+        self.dec_fc1 = nn.Linear(self.code_size, 64)
+        self.dec_bn1 = nn.BatchNorm1d(64)
         # self.dec_fc2 = nn.Linear(128, 256)
         # self.dec_bn2 = nn.BatchNorm1d(256)
-        self.dec_fc3 = nn.Linear(128, self.infeatures)
+        self.dec_fc3 = nn.Linear(64, self.infeatures)
 
     def encode(self, x):
         x = self.relu(self.enc_bn1(self.enc_fc1(x)))

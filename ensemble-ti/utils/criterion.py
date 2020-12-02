@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -26,3 +27,13 @@ class VAELoss(nn.Module):
             return torch.mean(loss)
         else:
             return loss
+
+
+class FractionalNorm:
+    def __init__(self, order):
+        self.order = order
+
+    def __call__(self, x, y):
+        assert isinstance(x, np.ndarray)
+        assert isinstance(y, np.ndarray)
+        return np.sum(np.power(np.abs(x - y), self.order)) ** (1 / self.order)

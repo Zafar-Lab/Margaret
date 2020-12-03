@@ -52,7 +52,6 @@ class UnsupervisedTrainer:
         best_eval = 0.0
         tk0 = tqdm(range(start_epoch, self.num_epochs))
         for epoch_idx in tk0:
-            print(f'Training for epoch: {epoch_idx}')
             avg_epoch_loss = self.train_one_epoch()
 
             # Build loss profile

@@ -55,6 +55,12 @@ embedding = Embedding(n_comps=10)
 embedding.fit_transform(preprocessed_data, method='diffmap', metric='euclidean')
 X_diffusion = preprocessed_data.obsm['diffusion_eigenvectors']
 
+embedding.fit_transform(preprocessed_data, method='lle')
+X_lle = preprocessed_data.obsm['X_lle']
+
+embedding.fit_transform(preprocessed_data, method='isomap')
+X_isomap = preprocessed_data.obsm['X_isomap']
+
 # Train the AutoEncoder to get the shared latent space
 X_train = np.concatenate([X_diffusion, X_scvi], 1)
 infeatures = X_scvi.shape[-1] + X_diffusion.shape[-1]

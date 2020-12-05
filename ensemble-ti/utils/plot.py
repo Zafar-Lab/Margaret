@@ -71,3 +71,24 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None):
             cax, _ = matplotlib.colorbar.make_axes(axes)
             matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
     plt.show()
+
+
+def plot_pseudotime(adata, cmap=None, figsize=None):
+    pseudotime = adata.obsm['X_pseudotime']
+    X_embedded = adata.obsm['X_embedded']
+
+    # Plot
+    axes = plt.subplot(111)
+    axes.scatter(
+        X_embedded[:, 0], X_embedded[:, 1], s=20,
+        c=pseudotime, cmap=cmap
+    )
+    axes.set_axis_off()
+
+    # Display the Colorbar
+    vmin = np.min(pseudotime)
+    vmax = np.max(pseudotime)
+    normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    cax, _ = matplotlib.colorbar.make_axes(axes)
+    matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap('viridis'))
+    plt.show()

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scanpy as sc
+import networkx as nx
 
 from copy import deepcopy
 from scipy.sparse.csgraph import dijkstra
@@ -35,18 +36,23 @@ def compute_trajectory(
     X_df = pd.DataFrame(X, index=adata.to_df().index)
 
     # Get starting cell
+    print('Determining starting cell')
     start_cell_idx = get_starting_cell(X_df, early_cell_label)
+    print(f'Found cell {X_df.index[start_cell_idx]} closest to user-defined cell: {early_cell_label}')
 
     # Compute waypoints
+    print('Computing Waypoints')
     waypoint_set = get_waypoints(X, n_waypoints=n_waypoints)
 
     # Compute pseudotime
+    print('Estimating Pseudotime')
     pseudotime, W = compute_pseudotime(
-        X, start_cell_idx, waypoint_set,
+        X_df, start_cell_idx, waypoint_set,
         n_neighbors=n_neighbors, max_iterations=max_iterations
     )
     adata.obsm['X_pseudotime'] = pseudotime
     adata.uns['waypoint_weights'] = W
+    print('Done!. The pseudotime estimates can be found in the key `X_pseudotime` under data.obsm')
 
 
 def get_starting_cell(data_df, cell_label):
@@ -80,7 +86,7 @@ def get_waypoints(X, n_waypoints=50):
 
     N = X.shape[0]
     n_components = X.shape[-1]
-    n_waypoints_per_comp = n_waypoints / n_components
+    n_waypoints_per_comp = n_waypoints // n_components
     waypoints = set()
 
     # Sampling over individual components
@@ -107,11 +113,16 @@ def get_waypoints(X, n_waypoints=50):
     return waypoints
 
 
-def compute_pseudotime(X, start_cell_idx, waypoints, n_neighbors=30, max_iterations=10):
+def compute_pseudotime(X_df, start_cell_idx, waypoints, n_neighbors=30, max_iterations=10):
     """Computes Pseudotime based on the method suggested in Palantir
     """
+    X = X_df.to_numpy()
+    N = X.shape[0]
     nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric="euclidean").fit(X)
     adj = nbrs.kneighbors_graph(X, mode="distance")
+
+    # Connect graph if it is disconnected
+    adj = _connect_graph(adj, X_df, start_cell_idx)
 
     # Compute distances of waypoints from cells
     D = np.zeros((len(waypoints), N))
@@ -155,3 +166,46 @@ def compute_pseudotime(X, start_cell_idx, waypoints, n_neighbors=30, max_iterati
         pseudotime = pseudotime_
         iter_count += 1
     return pseudotime, W
+
+
+def _connect_graph(adj, data, start_cell):
+
+    # Create graph and compute distances
+    graph = nx.Graph(adj)
+    dists = pd.Series(nx.single_source_dijkstra_path_length(graph, start_cell))
+    dists = pd.Series(dists.values, index=data.index[dists.index])
+
+    # Idenfity unreachable nodes
+    unreachable_nodes = data.index.difference(dists.index)
+    if len(unreachable_nodes) > 0:
+        print(
+            "Warning: Some of the cells were unreachable. Consider increasing the k for \n \
+            nearest neighbor graph construction."
+        )
+
+    # Connect unreachable nodes
+    while len(unreachable_nodes) > 0:
+        farthest_reachable = np.where(data.index == dists.idxmax())[0][0]
+
+        # Compute distances to unreachable nodes
+        unreachable_dists = pairwise_distances(
+            data.iloc[farthest_reachable, :].values.reshape(1, -1),
+            data.loc[unreachable_nodes, :],
+        )
+        unreachable_dists = pd.Series(
+            np.ravel(unreachable_dists), index=unreachable_nodes
+        )
+
+        # Add edge between farthest reacheable and its nearest unreachable
+        add_edge = np.where(data.index == unreachable_dists.idxmin())[0][0]
+        adj[farthest_reachable, add_edge] = unreachable_dists.min()
+
+        # Recompute distances to early cell
+        graph = nx.Graph(adj)
+        dists = pd.Series(nx.single_source_dijkstra_path_length(graph, start_cell))
+        dists = pd.Series(dists.values, index=data.index[dists.index])
+
+        # Idenfity unreachable nodes
+        unreachable_nodes = data.index.difference(dists.index)
+
+    return adj

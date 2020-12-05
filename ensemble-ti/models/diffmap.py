@@ -55,12 +55,14 @@ class DiffusionMap:
         T = csr_matrix((D, (range(N), range(N))), shape=[N, N]).dot(kernel)
 
         # Eigen value dcomposition
-        D, V = eigs(T, self.n_components, tol=1e-4, maxiter=1000)
+        # Taking the n + 1 components cause the first eigenvector is trivial
+        # and will be removed
+        D, V = eigs(T, self.n_components + 1, tol=1e-4, maxiter=1000)
         D = np.real(D)
         V = np.real(V)
         inds = np.argsort(D)[::-1]
-        D = D[inds]
-        V = V[:, inds]
+        D = D[inds][1:]
+        V = V[:, inds][:, 1:]
 
         # Account for the multi-scale distance computation
         # which avoids the selection of an additional t parameter

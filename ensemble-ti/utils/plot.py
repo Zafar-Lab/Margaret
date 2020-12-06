@@ -2,6 +2,7 @@ import math
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import phate
  
 from matplotlib import cm
@@ -36,13 +37,20 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None):
         X_embedded = adata.obsm['X_embedded']
     except KeyError:
         raise Exception('Generate the embeddings before plotting')
+
+    try:
+        X_imputed = adata.obsm['X_magic']
+    except KeyError:
+        print('MAGIC imputed data not found. Using raw counts instead')
+        X_imputed = adata.X
     
     assert X_embedded.shape[-1] == 2
     cmap = cm.Spectral_r if cmap is None else cmap
-    data_df = adata.to_df()
+    raw_data_df = adata.to_df()
+    imputed_data_df = pd.DataFrame(X_imputed, columns=raw_data_df.columns, index=raw_data_df.index)
 
     # Remove genes excluded from the analysis
-    excluded_genes = set(genes) - set(data_df.columns)
+    excluded_genes = set(genes) - set(raw_data_df.columns)
     if len(excluded_genes) != 0:
         print(f'The following genes were not plotted: {excluded_genes}')
 
@@ -54,7 +62,7 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None):
     for row_idx in range(nrows):
         for col_idx in range(ncols):
             gene_name = net_genes[gene_index]
-            gene_expression = data_df[gene_name].to_numpy()
+            gene_expression = imputed_data_df[gene_name].to_numpy()
             axes = plt.subplot(gs[row_idx, col_idx]) 
             axes.scatter(
                 X_embedded[:, 0], X_embedded[:, 1], s=20,

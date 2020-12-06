@@ -28,7 +28,7 @@ def generate_plot_embeddings(X, method='phate', **kwargs):
         raise ValueError(f'Unsupported embedding method type: {method}')
 
 
-def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None):
+def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_size=5):
     # BUG: Currently displays the colormap for
     # each gene individually. Update to get a common vmin and
     # vmax for all the genes that need to be plotted
@@ -65,7 +65,7 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None):
             gene_expression = imputed_data_df[gene_name].to_numpy()
             axes = plt.subplot(gs[row_idx, col_idx]) 
             axes.scatter(
-                X_embedded[:, 0], X_embedded[:, 1], s=20,
+                X_embedded[:, 0], X_embedded[:, 1], s=marker_size,
                 c=gene_expression, cmap=cmap
             )
             axes.set_title(gene_name)
@@ -81,14 +81,14 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None):
     plt.show()
 
 
-def plot_pseudotime(adata, cmap=None, figsize=None):
+def plot_pseudotime(adata, cmap=None, figsize=None, marker_size=5):
     pseudotime = adata.obsm['X_pseudotime']
     X_embedded = adata.obsm['X_embedded']
 
     # Plot
     axes = plt.subplot(111)
     axes.scatter(
-        X_embedded[:, 0], X_embedded[:, 1], s=20,
+        X_embedded[:, 0], X_embedded[:, 1], s=marker_size,
         c=pseudotime, cmap=cmap
     )
     axes.set_axis_off()

@@ -26,7 +26,7 @@ class DiffusionMap:
 
         # Adaptive k
         # This gives the lth neighbor as described in the Palantir paper
-        adaptive_k = int(np.floor(self.n_neighbors / 5))
+        adaptive_k = int(np.floor(self.n_neighbors / 10))
         adaptive_std = np.zeros(N)
 
         for i in np.arange(len(adaptive_std)):

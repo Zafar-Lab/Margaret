@@ -57,17 +57,16 @@ class DiffusionMap:
         # Eigen value dcomposition
         # Taking the n + 1 components cause the first eigenvector is trivial
         # and will be removed
-        D, V = eigs(T, self.n_components + 1, tol=1e-4, maxiter=1000)
+        D, V = eigs(T, self.n_components, tol=1e-4, maxiter=1000)
         D = np.real(D)
         V = np.real(V)
         inds = np.argsort(D)[::-1]
-        D = D[inds][1:]
-        V = V[:, inds][:, 1:]
+        D = D[inds]
+        V = V[:, inds]
 
         # Account for the multi-scale distance computation
         # which avoids the selection of an additional t parameter
         for i in range(V.shape[1]):
-            V[:, i] = V[:, i] * (D[i]/(1 - D[i]))
             V[:, i] = V[:, i] / np.linalg.norm(V[:, i])
 
         # Create are results dictionary
@@ -77,6 +76,22 @@ class DiffusionMap:
             "eigenvalues": D,
             "kernel": kernel
         }
+
+    def determine_multiscale_space(self, eigenvalues, eigenvectors, n_eigs=None):
+        # Perform eigen gap analysis to select eigenvectors
+        n_eigs = eigenvalues.shape[-1]
+        if n_eigs is None:
+            vals = np.ravel(eigenvalues)
+            n_eigs = np.argsort(vals[: (len(vals) - 1)] - vals[1:])[-1] + 1
+            if n_eigs < 3:
+                n_eigs = np.argsort(vals[: (len(vals) - 1)] - vals[1:])[-2] + 1
+
+        # Select eigenvalues
+        use_eigs = list(range(1, n_eigs))
+        eig_vals = np.ravel(eigenvalues[use_eigs])
+        # Scale the data
+        scaled_eigenvectors = eigenvectors[:, use_eigs] * (eig_vals / (1 - eig_vals))
+        return scaled_eigenvectors
 
 
 class IterativeDiffusionMap:

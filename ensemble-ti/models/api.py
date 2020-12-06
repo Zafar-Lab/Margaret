@@ -45,13 +45,14 @@ class Embedding:
         try:
             X = adata.obsm['X_pca']
         except KeyError:
-            raise Exception('PCA must be performed before computing the embedding')
+            raise Exception('PCA must be performed before computing Embedding')
 
         if method == 'diffmap':
             diffmap = DiffusionMap(n_components=self.n_comps, random_state=self.random_state, **kwargs)
             res = diffmap(X)
+            eigenvectors = diffmap.determine_multiscale_space(res['eigenvalues'], res['eigenvectors'])
             adata.obsm['diffusion_T'] = res['T']
-            adata.obsm['diffusion_eigenvectors'] = res['eigenvectors']
+            adata.obsm['diffusion_eigenvectors'] = eigenvectors
             adata.uns['diffusion_eigenvalues'] = res['eigenvalues']
             adata.obsm['diffusion_kernel'] = res['kernel']
         elif method == 'lle':

@@ -24,7 +24,7 @@ adata = sc.read(data_path, first_column_names=True)
 # Preprocessing
 min_expr_level = 50
 min_cells = 10
-use_hvg = True
+use_hvg = False
 n_top_genes = 1500
 preprocessed_data = preprocess_recipe(
     adata, 
@@ -34,15 +34,15 @@ preprocessed_data = preprocess_recipe(
     n_top_genes=n_top_genes
 )
 
+# Apply MAGIC on the data
+magic_op = magic.MAGIC(random_state=random_seed, solver='exact')
+X_magic = magic_op.fit_transform(preprocessed_data.X, genes='all_genes')
+preprocessed_data.obsm['X_magic'] = X_magic
+
 # Apply PCA
-print('Computing optimal number of components for PCA...')
+print('Computing PCA...')
 _, _, n_comps = run_pca(preprocessed_data, use_hvg=use_hvg)
 print(f'Components computed: {n_comps}')
-
-# Apply MAGIC on the pca data
-magic_op = magic.MAGIC(random_state=random_seed, solver='exact', n_pca=n_comps)
-X_magic = magic_op.fit_transform(preprocessed_data.X, genes='pca_only')
-preprocessed_data.obsm['X_magic'] = X_magic
 
 # Train scvi on the data
 train_scvi(adata, save_path='/home/lexent/ensemble_data/', n_epochs=400)

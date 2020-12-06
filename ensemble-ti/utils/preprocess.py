@@ -2,7 +2,7 @@ import numpy as np
 import scanpy as sc
 
 
-def preprocess_recipe(adata, min_expr_level=1000, min_cells=10, use_hvg=True, n_top_genes=1500):
+def preprocess_recipe(adata, min_expr_level=50, min_cells=10, use_hvg=True, n_top_genes=1500):
     preprocessed_data = adata.copy()
     print('Preprocessing....')
     sc.pp.filter_cells(preprocessed_data, min_counts=min_expr_level)

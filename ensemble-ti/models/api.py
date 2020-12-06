@@ -43,9 +43,9 @@ class Embedding:
         if not isinstance(adata, sc.AnnData):
             raise ValueError(f'Expected data to be of type sc.AnnData got {type(adata)}')
         try:
-            X = adata.obsm['X_magic']
+            X = adata.obsm['X_pca']
         except KeyError:
-            raise Exception('Magic imputation must be performed before computing Embedding')
+            raise Exception('PCA must be performed before computing the embedding')
 
         if method == 'diffmap':
             diffmap = DiffusionMap(n_components=self.n_comps, random_state=self.random_state, **kwargs)

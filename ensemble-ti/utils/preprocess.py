@@ -1,5 +1,8 @@
 import numpy as np
 import scanpy as sc
+import pandas as pd
+
+from sklearn.decomposition import PCA
 
 
 def preprocess_recipe(adata, min_expr_level=50, min_cells=10, use_hvg=True, n_top_genes=1500):
@@ -30,26 +33,32 @@ def log_transform(data, pseudo_count=0.1):
         return np.log2(data + pseudo_count)
 
 
-def run_pca(data, n_components=300, use_hvg=True, variance=0.85):
-    if type(data) is sc.AnnData:
-        ad = data
-    else:
-        ad = sc.AnnData(data.values)
+def run_pca(data, n_components=300, use_hvg=True, variance=0.85, obsm_key=None, random_state=0):
+    if not isinstance(data, sc.AnnData):
+        raise Exception(f'Expected data to be of type sc.AnnData found: {type(data)}')
+
+    data_df = data.to_df()
+    if obsm_key is not None:
+        data_df = data.obsm[obsm_key]
+        if isinstance(data_df, np.ndarray):
+            data_df = pd.DataFrame(data_df, index=data.obs_names, columns=data.var_names)
 
     # Run PCA
     if not use_hvg:
+        X = data_df.to_numpy()
         n_comps = n_components
     else:
-        sc.pp.pca(ad, n_comps=1000, use_highly_variable=True, zero_center=False)
+        valid_cols = data_df.columns[data.var['highly_variable'] == True]
+        X = data_df[valid_cols].to_numpy()
+        pca = PCA(n_components=1000, random_state=random_state)
+        pca.fit(X)
         try:
-            n_comps = np.where(np.cumsum(ad.uns['pca']['variance_ratio']) > variance)[0][0]
+            n_comps = np.where(np.cumsum(pca.explained_variance_ratio_) > variance)[0][0]
         except IndexError:
             n_comps = n_components
 
     # Re-run with selected number of components (Either n_comps=n_components or
     # n_comps = minimum number of components required to explain variance)
-    sc.pp.pca(ad, n_comps=n_comps, use_highly_variable=use_hvg, zero_center=False)
-
-    # Return PCA projections if it is a dataframe
-    X_pca = ad.obsm['X_pca']
-    return X_pca, ad.uns['pca']['variance_ratio'], n_comps
+    pca = PCA(n_components=n_comps, random_state=random_state)
+    X_pca = pca.fit_transform(X)
+    return X_pca, pca.explained_variance_ratio_, n_comps

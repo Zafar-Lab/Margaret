@@ -1,3 +1,6 @@
+# TODO: Refactor to remove redundant code in the train_one_epoch method
+
+
 import copy
 import gc
 import numpy as np
@@ -200,6 +203,25 @@ class AEMixupTrainer(UnsupervisedTrainer):
             else:
                 predictions = self.model(data_batch)
                 loss = self.train_criterion(data_batch, predictions)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
+        return epoch_loss/ len(self.train_loader)
+
+
+class MetricTrainer(UnsupervisedTrainer):
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        tk0 = self.train_loader
+        for idx, data_batch in enumerate(tk0):
+            self.optimizer.zero_grad()
+            data_batch = data_batch.to(self.device)
+            anchor, pos, neg = data_batch
+            X_anchor = self.model(anchor)
+            X_pos = self.model(pos)
+            X_neg = self.model(neg)
+            loss = self.train_criterion(X_anchor, X_pos, X_neg)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()

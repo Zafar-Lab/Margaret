@@ -1,16 +1,15 @@
+import magic
 import numpy as np
 import scanpy as sc
 import torch
-import torchvision
-import torchvision.transforms as T
 
 from datasets.np import NpDataset
-from models.vae import VAE
-from models.dae import DAE
-from util.preprocess import preprocess_recipe, run_pca
-from util.criterion import VAELoss
-from util.trainer import VAETrainer, DAETrainer
-from util.config import *
+from models.ae import AE
+from models.api import *
+from utils.plot import plot_gene_expression, generate_plot_embeddings
+from utils.preprocess import preprocess_recipe, run_pca
+from utils.trainer import AETrainer, AEMixupTrainer
+from utils.config import *
 
 
 random_seed = 0
@@ -19,63 +18,72 @@ torch.manual_seed(random_seed)
 
 
 # Load data
-# data_path = '/home/lexent/ensemble-ti/ensemble-ti/data/marrow_sample_scseq_counts.csv'
-# data = sc.read(data_path, first_column_names=True)
+data_path = '/home/lexent/ensemble-ti/ensemble-ti/data/marrow_sample_scseq_counts.csv'
+adata = sc.read(data_path, first_column_names=True)
 
-# # Preprocess data
-# min_expr_level = 1000
-# min_cells = 50
-# use_hvg = True
-# n_top_genes = 500
-# preprocessed_data = preprocess_recipe(
-#     data, 
-#     min_expr_level=min_expr_level, 
-#     min_cells=min_cells,
-#     use_hvg=use_hvg,
-#     n_top_genes=n_top_genes
-# )
-
-# Apply PCA as a preprocessing step
-# variance = 0.85
-# X_pca, variance = run_pca(preprocessed_data, use_hvg=True, variance=variance)
-
-# Train a VAE on the input data
-# X_pca = preprocessed_data.X
-# train_dataset = NpDataset(X_pca)
-transforms = T.Compose([
-    T.ToTensor()
-])
-mnist_data = torchvision.datasets.MNIST('data/', transform=transforms, download=True)
-save_path = '/home/lexent/ensemble_data/'
-train_loss = VAELoss(use_bce=True)
-dae_train_loss = get_loss('mse')
-eval_loss = None
-# in_features = X_pca.shape[1]
-in_features = 784
-code_size = 5
-batch_size = 128
-lr = 0.001
-optim = 'Adam'
-# optimizer_kwargs = {
-    # 'momentum': 0.9
-# }
-
-epochs = 200
-model = VAE(in_features, code_size=code_size)
-dae = DAE(in_features, code_size=code_size)
-
-trainer = VAETrainer(
-    mnist_data, model, train_loss,
-    random_state=random_seed, batch_size=batch_size,
-    lr=lr, optimizer=optim, num_epochs=epochs, 
-    # optimizer_kwargs=optimizer_kwargs
+# Preprocessing
+min_expr_level = 50
+min_cells = 10
+use_hvg = False
+n_top_genes = 1500
+preprocessed_data = preprocess_recipe(
+    adata, 
+    min_expr_level=min_expr_level, 
+    min_cells=min_cells,
+    use_hvg=use_hvg,
+    n_top_genes=n_top_genes
 )
 
-trainer_2 = DAETrainer(
-    mnist_data, dae, dae_train_loss,
-    random_state=random_seed, batch_size=batch_size,
-    lr=lr, optimizer=optim, num_epochs=epochs,
-    # optimizer_kwargs=optimizer_kwargs
-)
+# Apply MAGIC on the data
+magic_op = magic.MAGIC(random_state=random_seed, solver='exact')
+X_magic = magic_op.fit_transform(preprocessed_data.X, genes='all_genes')
+preprocessed_data.obsm['X_magic'] = X_magic
 
-trainer.train(save_path)
+# Apply PCA
+print('Computing PCA...')
+_, _, n_comps = run_pca(preprocessed_data, use_hvg=use_hvg)
+print(f'Components computed: {n_comps}')
+
+# Train scvi on the data
+train_scvi(adata, save_path='/home/lexent/ensemble_data/', n_epochs=400)
+X_scvi = adata.obsm['X_scVI']
+preprocessed_data['X_scVI'] = X_scvi
+
+# Apply different Non-Linear manifold learning embeddings
+# Can also apply isomap, lle etc. here
+embedding = Embedding(n_comps=10)
+embedding.fit_transform(preprocessed_data, method='diffmap', metric='euclidean')
+X_diffusion = preprocessed_data.obsm['diffusion_eigenvectors']
+
+embedding.fit_transform(preprocessed_data, method='lle')
+X_lle = preprocessed_data.obsm['X_lle']
+
+embedding.fit_transform(preprocessed_data, method='isomap')
+X_isomap = preprocessed_data.obsm['X_isomap']
+
+# Train the AutoEncoder to get the shared latent space
+X_train = np.concatenate([X_diffusion, X_scvi], 1)
+infeatures = X_scvi.shape[-1] + X_diffusion.shape[-1]
+code_size=10
+dataset = NpDataset(X_train)
+model = AE(infeatures, code_size=code_size)
+train_loss = get_loss('mse')
+trainer = AEMixupTrainer(dataset, model, train_loss, num_epochs=150)
+trainer.train('/home/lexent/ensemble_data/ae/')
+
+# FIXME: Refactor code to move this part in the code for AE
+embedding = []
+model = model.cpu()
+model.eval()
+with torch.no_grad():
+    for data in dataset:
+        embedding.append(model.encode(data.unsqueeze(0)).squeeze().numpy())
+X_embedding = np.array(embedding)
+
+# Compute the 2d embedding and plot
+X_embedded = generate_plot_embeddings(X_diffusion, method='tsne', perplexity=150)
+preprocessed_data.obsm['X_embedded'] = X_embedded
+plot_gene_expression(preprocessed_data, genes=['CD34', 'MPO', 'GATA1', 'IRF8'], figsize=(16, 4), cmap='plasma')
+
+# Save this anndata object
+preprocessed_data.write_h5ad(filename='./analysis.h5ad')

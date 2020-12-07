@@ -1,3 +1,5 @@
+from numba import jit
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -26,3 +28,8 @@ class VAELoss(nn.Module):
             return torch.mean(loss)
         else:
             return loss
+
+
+@jit(nopython=True)
+def fractional_norm(x, y, order=0.5):
+    return np.sum(np.power(np.abs(x - y), order)) ** (1 / order)

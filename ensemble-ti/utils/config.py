@@ -16,7 +16,6 @@ from PIL import Image
 from tqdm import tqdm
 
 from models import *
-from util.datastore import get_dataset
 
 
 _SUPPORTED_DEVICES = ['cpu', 'gpu']

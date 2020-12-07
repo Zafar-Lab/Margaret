@@ -1,11 +1,12 @@
 import copy
 import gc
+import numpy as np
 import os
 import torch
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-from util.config import configure_device, get_loss, get_lr_scheduler, get_optimizer
+from utils.config import configure_device, get_lr_scheduler, get_optimizer
 
 
 class UnsupervisedTrainer:
@@ -49,8 +50,8 @@ class UnsupervisedTrainer:
             self.load(restore_path)
 
         best_eval = 0.0
-        for epoch_idx in range(start_epoch, self.num_epochs):
-            print(f'Training for epoch: {epoch_idx}')
+        tk0 = tqdm(range(start_epoch, self.num_epochs))
+        for epoch_idx in tk0:
             avg_epoch_loss = self.train_one_epoch()
 
             # Build loss profile
@@ -59,7 +60,7 @@ class UnsupervisedTrainer:
             # Evaluate the model
             if self.val_criterion is not None:
                 val_eval = self.eval()
-                print(f'Avg Loss for epoch: {avg_epoch_loss} Eval Loss: {val_eval}')
+                tk0.set_postfix_str(f'Avg Loss for epoch: {avg_epoch_loss} Eval Loss: {val_eval}')
                 if epoch_idx == 0:
                     best_eval = val_eval
                     self.save(save_path, epoch_idx, prefix='best')
@@ -69,7 +70,7 @@ class UnsupervisedTrainer:
                         self.save(save_path, epoch_idx, prefix='best')
                         best_eval = val_eval
             else:
-                print(f'Avg Loss for epoch:{avg_epoch_loss}')
+                tk0.set_postfix_str(f'Avg Loss for epoch:{avg_epoch_loss}')
                 if epoch_idx % 10 == 0:
                     # Save the model every 10 epochs anyways
                     self.save(save_path, epoch_idx)
@@ -134,10 +135,9 @@ class VAETrainer(UnsupervisedTrainer):
         self.model.train()
         epoch_loss = 0
         tk0 = tqdm(self.train_loader)
-        for idx, (data_batch, _) in enumerate(tk0):
+        for idx, data_batch in enumerate(tk0):
             self.optimizer.zero_grad()
             data_batch = data_batch.to(self.device)
-            data_batch = data_batch.reshape(-1, 784)
             _, predictions, mu, logvar = self.model(data_batch)
             loss = self.train_criterion(data_batch, predictions, mu, logvar)
             loss.backward()
@@ -151,7 +151,7 @@ class VAETrainer(UnsupervisedTrainer):
         self.model.eval()
         eval_loss = 0
         with torch.no_grad():
-            for idx, (data_batch, _) in enumerate(self.val_loader):
+            for idx, data_batch in enumerate(self.val_loader):
                 self.optimizer.zero_grad()
                 data_batch = data_batch.to(self.device)
                 _, predictions, mu, logvar = self.model(data_batch)
@@ -160,12 +160,12 @@ class VAETrainer(UnsupervisedTrainer):
         return eval_loss / len(self.val_loader)
 
 
-class DAETrainer(UnsupervisedTrainer):
+class AETrainer(UnsupervisedTrainer):
     def train_one_epoch(self):
         self.model.train()
         epoch_loss = 0
-        tk0 = tqdm(self.train_loader)
-        for idx, (data_batch, _) in enumerate(tk0):
+        tk0 = self.train_loader
+        for idx, data_batch in enumerate(tk0):
             self.optimizer.zero_grad()
             data_batch = data_batch.to(self.device)
             predictions = self.model(data_batch)
@@ -173,6 +173,34 @@ class DAETrainer(UnsupervisedTrainer):
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()
-            if idx % self.log_step == 0:
-                tk0.set_postfix_str(f'Loss at step {idx + 1}: {loss.item()}')
+        return epoch_loss/ len(self.train_loader)
+
+
+class AEMixupTrainer(UnsupervisedTrainer):
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        tk0 = self.train_loader
+        for idx, data_batch in enumerate(tk0):
+            self.optimizer.zero_grad()
+            data_batch = data_batch.to(self.device)
+            if np.random.uniform() > 0.5:
+                # Apply mixup in the latent space
+                permuted_inds = torch.randperm(self.batch_size).to(self.device)
+                permuted_batch = data_batch[permuted_inds]
+                lamb = np.random.beta(1.0, 1.0)
+                mixup_batch = lamb * data_batch + (1 - lamb) * permuted_batch
+                z1 = self.model.encode(data_batch)
+                z2 = self.model.encode(permuted_batch)
+                z = lamb * z1 + (1 - lamb) * z2
+                z_hat = self.model.encode(mixup_batch)
+                z_loss = torch.nn.functional.mse_loss(z, z_hat, reduction='mean')
+                predictions = self.model(data_batch)
+                loss = self.train_criterion(data_batch, predictions) + 0.5 * z_loss
+            else:
+                predictions = self.model(data_batch)
+                loss = self.train_criterion(data_batch, predictions)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
         return epoch_loss/ len(self.train_loader)

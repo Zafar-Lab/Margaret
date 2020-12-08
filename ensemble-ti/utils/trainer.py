@@ -214,10 +214,11 @@ class MetricTrainer(UnsupervisedTrainer):
         self.model.train()
         epoch_loss = 0
         tk0 = self.train_loader
-        for idx, data_batch in enumerate(tk0):
+        for idx, (anchor, pos, neg) in enumerate(tk0):
             self.optimizer.zero_grad()
-            data_batch = data_batch.to(self.device)
-            anchor, pos, neg = data_batch
+            anchor = anchor.to(self.device)
+            pos = pos.to(self.device)
+            neg = neg.to(self.device)
             X_anchor = self.model(anchor)
             X_pos = self.model(pos)
             X_neg = self.model(neg)

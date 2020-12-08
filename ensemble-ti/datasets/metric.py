@@ -6,14 +6,15 @@ from torch.utils.data import Dataset
 
 
 class MetricDataset(Dataset):
-    def __init__(self, data, obsm_key='phenograph_communities', transform=None):
+    def __init__(self, data, obsm_cluster_key='phenograph_communities', obsm_data_key='X_pca', transform=None):
         if not isinstance(data, sc.AnnData):
             raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
         self.data = data
         try:
-            self.cluster_inds = data.obsm[obsm_key]
+            self.cluster_inds = data.obsm[obsm_cluster_key]
         except KeyError:
-            raise Exception(f'`{obsm_key}` must be set in the data')
+            raise Exception(f'`{obsm_cluster_key}` must be set in the data')
+        self.X = self.data.obsm[obsm_data_key]
         unique_clusters = np.unique(self.cluster_inds)
 
         self.indices = np.arange(self.data.shape[0])
@@ -35,8 +36,8 @@ class MetricDataset(Dataset):
         cls2_indices = self.cluster_inds == cls2
 
         # Sample Anchor, positive and negative class samples
-        anchor, pos_sample = self.data.X[np.random.choice(self.indices[cls2_indices]), size=2]
-        neg_sample = self.data.X[np.random.choice(self.indices[cls2_indices])]
+        anchor, pos_sample = torch.Tensor(self.X[np.random.choice(self.indices[cls1_indices], size=2)])
+        neg_sample = torch.Tensor(self.X[np.random.choice(self.indices[cls2_indices])])
 
         if self.transform is not None:
             anchor = self.transform(anchor)

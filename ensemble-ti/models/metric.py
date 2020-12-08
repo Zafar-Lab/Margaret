@@ -10,6 +10,9 @@ class MetricEncoder(nn.Module):
 
         # Encoder architecture
         self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(p=0.3)
+
+        # Encoder Architecture
         self.fc1 = nn.Linear(self.infeatures, 128)
         self.bn1 = nn.BatchNorm1d(128)
         self.fc2 = nn.Linear(128, 64)
@@ -19,7 +22,9 @@ class MetricEncoder(nn.Module):
 
     def forward(self, x):
         x = self.relu(self.bn1(self.fc1(x)))
+        x = self.dropout(x)
         x = self.relu(self.bn2(self.fc2(x)))
+        x = self.dropout(x)
         x = self.bn3(self.fc3(x))
         return x
 

@@ -9,9 +9,9 @@ from matplotlib import cm
 from sklearn.manifold import TSNE
 
 
-def plot_embeddings(X):
+def plot_embeddings(X, **kwargs):
     assert X.shape[-1] == 2
-    plt.scatter(X_embedded[:, 0], X_embedded[:, 1])
+    plt.scatter(X_embedded[:, 0], X_embedded[:, 1], **kwargs)
     plt.show()
 
 
@@ -98,5 +98,5 @@ def plot_pseudotime(adata, cmap=None, figsize=None, marker_size=5):
     vmax = np.max(pseudotime)
     normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     cax, _ = matplotlib.colorbar.make_axes(axes)
-    matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap('viridis'))
+    matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
     plt.show()

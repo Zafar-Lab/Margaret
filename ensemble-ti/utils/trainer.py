@@ -9,9 +9,10 @@ from torch.utils.data import DataLoader
 from utils.config import configure_device, get_lr_scheduler, get_optimizer
 
 
+# TODO: Convert this to a generic trainer with a step() method instead of train_one_epoch()
 class UnsupervisedTrainer:
     def __init__(self, train_dataset, model, train_loss, val_dataset=None, lr_scheduler='poly',
-        num_epochs=100, batch_size=32, lr=0.01, eval_loss=None, log_step=10, optimizer='SGD',
+        batch_size=32, lr=0.01, eval_loss=None, log_step=10, optimizer='SGD',
         backend='gpu', random_state=0, optimizer_kwargs={}, lr_scheduler_kwargs={}, **kwargs
     ):
         # Create the dataset
@@ -20,7 +21,6 @@ class UnsupervisedTrainer:
         self.device = configure_device(backend)
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
-        self.num_epochs = num_epochs
         self.log_step = log_step
         self.loss_profile = []
         self.batch_size = batch_size
@@ -34,7 +34,8 @@ class UnsupervisedTrainer:
         # The parameter eval_loss must be a callable
         self.val_criterion = eval_loss
         self.optimizer = get_optimizer(optimizer, self.model, self.lr, **optimizer_kwargs)
-        self.lr_scheduler = get_lr_scheduler(self.optimizer, self.num_epochs, sched_type=lr_scheduler, **lr_scheduler_kwargs)
+        self.sched_type = lr_scheduler
+        self.sched_kwargs = lr_scheduler_kwargs
 
         # Some initialization code
         torch.set_default_tensor_type('torch.FloatTensor')
@@ -43,14 +44,15 @@ class UnsupervisedTrainer:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-    def train(self, save_path, restore_path=None):
+    def train(self, num_epochs, save_path, restore_path=None):
+        self.lr_scheduler = get_lr_scheduler(self.optimizer, num_epochs, sched_type=self.sched_type, **self.sched_kwargs)
         start_epoch = 0
         if restore_path is not None:
             # Load the model
             self.load(restore_path)
 
         best_eval = 0.0
-        tk0 = tqdm(range(start_epoch, self.num_epochs))
+        tk0 = tqdm(range(start_epoch, num_epochs))
         for epoch_idx in tk0:
             avg_epoch_loss = self.train_one_epoch()
 
@@ -129,12 +131,15 @@ class UnsupervisedTrainer:
             print('Restoring Learning Rate scheduler state')
             self.lr_scheduler.load_state_dict(state_dict['scheduler'])
 
+    def update_dataset(self, dataset):
+        self.train_dataset = dataset
+
 
 class VAETrainer(UnsupervisedTrainer):
     def train_one_epoch(self):
         self.model.train()
         epoch_loss = 0
-        tk0 = tqdm(self.train_loader)
+        tk0 = self.train_loader
         for idx, data_batch in enumerate(tk0):
             self.optimizer.zero_grad()
             data_batch = data_batch.to(self.device)
@@ -143,8 +148,6 @@ class VAETrainer(UnsupervisedTrainer):
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()
-            if idx % self.log_step == 0:
-                tk0.set_postfix_str(f'Loss at step {idx + 1}: {loss.item()}')
         return epoch_loss/ len(self.train_loader)
 
     def eval(self):
@@ -196,10 +199,30 @@ class AEMixupTrainer(UnsupervisedTrainer):
                 z_hat = self.model.encode(mixup_batch)
                 z_loss = torch.nn.functional.mse_loss(z, z_hat, reduction='mean')
                 predictions = self.model(data_batch)
-                loss = self.train_criterion(data_batch, predictions) + 0.5 * z_loss
+                loss = self.train_criterion(data_batch, predictions) + z_loss
             else:
                 predictions = self.model(data_batch)
                 loss = self.train_criterion(data_batch, predictions)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
+        return epoch_loss/ len(self.train_loader)
+
+
+class MetricTrainer(UnsupervisedTrainer):
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        tk0 = self.train_loader
+        for idx, (anchor, pos, neg) in enumerate(tk0):
+            self.optimizer.zero_grad()
+            anchor = anchor.to(self.device)
+            pos = pos.to(self.device)
+            neg = neg.to(self.device)
+            X_anchor = self.model(anchor)
+            X_pos = self.model(pos)
+            X_neg = self.model(neg)
+            loss = self.train_criterion(X_anchor, X_pos, X_neg)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()

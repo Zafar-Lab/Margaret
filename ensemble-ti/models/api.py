@@ -34,21 +34,20 @@ def train_dca(adata, save_path=None, return_model=True, **kwargs):
 
 
 class Embedding:
-    def __init__(self, n_comps, random_state=0, **kwargs):
-        self.n_comps = n_comps
+    def __init__(self, random_state=0, **kwargs):
         self.kwargs = kwargs
         self.random_state = random_state
 
-    def fit_transform(self, adata, method='diffmap', **kwargs):
+    def fit_transform(self, adata, obsm_key='X_pca', method='diffmap', n_comps=10, **kwargs):
         if not isinstance(adata, sc.AnnData):
             raise ValueError(f'Expected data to be of type sc.AnnData got {type(adata)}')
         try:
-            X = adata.obsm['X_pca']
+            X = adata.obsm[obsm_key]
         except KeyError:
-            raise Exception('PCA must be performed before computing Embedding')
+            raise Exception(f'{obsm_key} must be present before computing the embedding')
 
         if method == 'diffmap':
-            diffmap = DiffusionMap(n_components=self.n_comps, random_state=self.random_state, **kwargs)
+            diffmap = DiffusionMap(n_components=n_comps, random_state=self.random_state, **kwargs)
             res = diffmap(X)
             eigenvectors = diffmap.determine_multiscale_space(res['eigenvalues'], res['eigenvectors'])
             adata.obsm['diffusion_T'] = res['T']
@@ -56,11 +55,11 @@ class Embedding:
             adata.uns['diffusion_eigenvalues'] = res['eigenvalues']
             adata.obsm['diffusion_kernel'] = res['kernel']
         elif method == 'lle':
-            lle = LocallyLinearEmbedding(n_components=self.n_comps, random_state=self.random_state, **kwargs)
+            lle = LocallyLinearEmbedding(n_components=n_comps, random_state=self.random_state, **kwargs)
             X_lle = lle.fit_transform(X)
             adata.obsm['X_lle'] = X_lle
         elif method == 'isomap':
-            isomap = Isomap(n_components=self.n_comps, **kwargs)
+            isomap = Isomap(n_components=n_comps, **kwargs)
             X_isomap = isomap.fit_transform(X)
             adata.obsm['X_isomap'] = X_isomap
         else:

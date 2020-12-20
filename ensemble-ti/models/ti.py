@@ -43,6 +43,7 @@ def compute_trajectory(
     # Compute waypoints
     print('Computing Waypoints')
     waypoint_set = get_waypoints(X, n_waypoints=n_waypoints)
+    waypoint_set.add(start_cell_idx)
 
     # Compute pseudotime
     print('Estimating Pseudotime')

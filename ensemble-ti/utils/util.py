@@ -34,7 +34,7 @@ def log_transform(data, pseudo_count=0.1):
         return np.log2(data + pseudo_count)
 
 
-def run_pca(data, n_components=300, use_hvg=True, variance=0.85, obsm_key=None, random_state=0):
+def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, random_state=0):
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found: {type(data)}')
 
@@ -44,19 +44,22 @@ def run_pca(data, n_components=300, use_hvg=True, variance=0.85, obsm_key=None, 
         if isinstance(data_df, np.ndarray):
             data_df = pd.DataFrame(data_df, index=data.obs_names, columns=data.var_names)
 
-    # Run PCA
-    if not use_hvg:
-        X = data_df.to_numpy()
-        n_comps = n_components
-    else:
+    # Select highly variable genes if enabled
+    X = data_df.to_numpy()
+    if use_hvg:
         valid_cols = data_df.columns[data.var['highly_variable'] == True]
         X = data_df[valid_cols].to_numpy()
+
+    if variance is not None:
+        # Determine the number of components dynamically
         pca = PCA(n_components=1000, random_state=random_state)
         pca.fit(X)
         try:
             n_comps = np.where(np.cumsum(pca.explained_variance_ratio_) > variance)[0][0]
         except IndexError:
             n_comps = n_components
+    else:
+        n_comps = n_components
 
     # Re-run with selected number of components (Either n_comps=n_components or
     # n_comps = minimum number of components required to explain variance)

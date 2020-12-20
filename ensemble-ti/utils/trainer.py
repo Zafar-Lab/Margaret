@@ -199,7 +199,7 @@ class AEMixupTrainer(UnsupervisedTrainer):
                 z_hat = self.model.encode(mixup_batch)
                 z_loss = torch.nn.functional.mse_loss(z, z_hat, reduction='mean')
                 predictions = self.model(data_batch)
-                loss = self.train_criterion(data_batch, predictions) + 0.5 * z_loss
+                loss = self.train_criterion(data_batch, predictions) + z_loss
             else:
                 predictions = self.model(data_batch)
                 loss = self.train_criterion(data_batch, predictions)

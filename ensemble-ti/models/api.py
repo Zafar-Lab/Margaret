@@ -35,7 +35,6 @@ def train_dca(adata, save_path=None, return_model=True, **kwargs):
 
 class Embedding:
     def __init__(self, random_state=0, **kwargs):
-        self.n_comps = n_comps
         self.kwargs = kwargs
         self.random_state = random_state
 

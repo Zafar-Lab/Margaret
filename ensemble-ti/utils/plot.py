@@ -28,15 +28,15 @@ def generate_plot_embeddings(X, method='phate', **kwargs):
         raise ValueError(f'Unsupported embedding method type: {method}')
 
 
-def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_size=5):
+def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_size=5, obsm_key='X_embedded'):
     # BUG: Currently displays the colormap for
     # each gene individually. Update to get a common vmin and
     # vmax for all the genes that need to be plotted
     assert type(genes).__name__ in ['list', 'tuple']
     try:
-        X_embedded = adata.obsm['X_embedded']
+        X_embedded = adata.obsm[obsm_key]
     except KeyError:
-        raise Exception('Generate the embeddings before plotting')
+        raise Exception(f'Key {obsm_key} not found in {adata}')
 
     try:
         X_imputed = adata.obsm['X_magic']

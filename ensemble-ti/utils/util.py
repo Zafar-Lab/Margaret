@@ -6,14 +6,17 @@ import phenograph
 from sklearn.decomposition import PCA
 
 
-def preprocess_recipe(adata, min_expr_level=50, min_cells=10, use_hvg=True, n_top_genes=1500):
+def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, n_top_genes=1500):
     preprocessed_data = adata.copy()
     print('Preprocessing....')
-    sc.pp.filter_cells(preprocessed_data, min_counts=min_expr_level)
-    print(f'\t->Removed cells with expression level<{min_expr_level}')
 
-    sc.pp.filter_genes(preprocessed_data, min_cells=min_cells)
-    print(f'\t->Removed genes expressed in <{min_cells} cells')
+    if min_expr_level is not None:
+        sc.pp.filter_cells(preprocessed_data, min_counts=min_expr_level)
+        print(f'\t->Removed cells with expression level<{min_expr_level}')
+
+    if min_cells is not None:
+        sc.pp.filter_genes(preprocessed_data, min_cells=min_cells)
+        print(f'\t->Removed genes expressed in <{min_cells} cells')
 
     sc.pp.normalize_total(preprocessed_data)
     log_transform(preprocessed_data)

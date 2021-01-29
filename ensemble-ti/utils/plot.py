@@ -15,7 +15,7 @@ def plot_embeddings(X, **kwargs):
     plt.show()
 
 
-def generate_plot_embeddings(X, method='phate', **kwargs):
+def generate_plot_embeddings(X, method='tsne', **kwargs):
     if method == 'phate':
         phate_op = phate.PHATE(**kwargs)
         X_phate = phate_op.fit_transform(X)

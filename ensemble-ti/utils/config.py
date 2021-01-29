@@ -16,6 +16,7 @@ from PIL import Image
 from tqdm import tqdm
 
 from models import *
+from utils.criterion import *
 
 
 _SUPPORTED_DEVICES = ['cpu', 'gpu']
@@ -55,6 +56,8 @@ def get_loss(name, **kwargs):
     weight = None
     if name == 'mse':
         loss = nn.MSELoss(**kwargs)
+    elif name == 'vae':
+        loss = VAELoss(**kwargs)
     else:
         raise NotImplementedError(f'The loss {name} has not been implemented yet!')
     return loss

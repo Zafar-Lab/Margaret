@@ -162,7 +162,7 @@ class VAETrainer(UnsupervisedTrainer):
                 self.optimizer.zero_grad()
                 data_batch = data_batch.to(self.device)
                 _, predictions, mu, logvar = self.model(data_batch)
-                loss = self.val_criterion(data_batch, predictions)
+                loss = self.val_criterion(data_batch, predictions, mu, logvar)
                 eval_loss += loss.item()
         return eval_loss / len(self.val_loader)
 

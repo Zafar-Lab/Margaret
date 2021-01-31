@@ -82,8 +82,8 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_
 
 
 def plot_clusters(adata, obsm_key_comm='communities', obsm_key_embed='X_embedding', cmap=None, figsize=(12, 8)):
-    communities = preprocessed_data.obsm[obsm_key_comm]
-    embeddings = preprocessed_data.obsm[obsm_key_embed]
+    communities = adata.obsm[obsm_key_comm]
+    embeddings = adata.obsm[obsm_key_embed]
     # Only 2d embeddings can be visualized :)
     assert embeddings.shape[-1] == 2
 

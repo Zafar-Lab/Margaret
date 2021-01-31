@@ -12,8 +12,8 @@ from utils.config import configure_device, get_lr_scheduler, get_optimizer
 # TODO: Convert this to a generic trainer with a step() method instead of train_one_epoch()
 class UnsupervisedTrainer:
     def __init__(self, train_dataset, model, train_loss, val_dataset=None, lr_scheduler='poly',
-        batch_size=32, lr=0.01, eval_loss=None, log_step=10, optimizer='SGD',
-        backend='gpu', random_state=0, optimizer_kwargs={}, lr_scheduler_kwargs={}, **kwargs
+        batch_size=32, lr=0.01, eval_loss=None, log_step=10, optimizer='SGD', backend='gpu',
+        random_state=0, optimizer_kwargs={}, lr_scheduler_kwargs={}, **kwargs
     ):
         # Create the dataset
         self.lr = lr
@@ -29,15 +29,19 @@ class UnsupervisedTrainer:
         if self.val_dataset is not None:
             self.val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, drop_last=False, num_workers=0)
         self.model = model.to(self.device)
+
         # The parameter train_loss must be a callable
         self.train_criterion = train_loss
+
         # The parameter eval_loss must be a callable
         self.val_criterion = eval_loss
+
         self.optimizer = get_optimizer(optimizer, self.model, self.lr, **optimizer_kwargs)
         self.sched_type = lr_scheduler
         self.sched_kwargs = lr_scheduler_kwargs
 
         # Some initialization code
+        torch.manual_seed(self.random_state)
         torch.set_default_tensor_type('torch.FloatTensor')
         if self.device == 'gpu':
             # Set a deterministic CuDNN backend
@@ -158,7 +162,7 @@ class VAETrainer(UnsupervisedTrainer):
                 self.optimizer.zero_grad()
                 data_batch = data_batch.to(self.device)
                 _, predictions, mu, logvar = self.model(data_batch)
-                loss = self.val_criterion(data_batch, predictions)
+                loss = self.val_criterion(data_batch, predictions, mu, logvar)
                 eval_loss += loss.item()
         return eval_loss / len(self.val_loader)
 

@@ -15,7 +15,7 @@ def plot_embeddings(X, **kwargs):
     plt.show()
 
 
-def generate_plot_embeddings(X, method='phate', **kwargs):
+def generate_plot_embeddings(X, method='tsne', **kwargs):
     if method == 'phate':
         phate_op = phate.PHATE(**kwargs)
         X_phate = phate_op.fit_transform(X)
@@ -28,15 +28,15 @@ def generate_plot_embeddings(X, method='phate', **kwargs):
         raise ValueError(f'Unsupported embedding method type: {method}')
 
 
-def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_size=5):
+def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_size=5, obsm_key='X_embedded'):
     # BUG: Currently displays the colormap for
     # each gene individually. Update to get a common vmin and
     # vmax for all the genes that need to be plotted
     assert type(genes).__name__ in ['list', 'tuple']
     try:
-        X_embedded = adata.obsm['X_embedded']
+        X_embedded = adata.obsm[obsm_key]
     except KeyError:
-        raise Exception('Generate the embeddings before plotting')
+        raise Exception(f'Key {obsm_key} not found in {adata}')
 
     try:
         X_imputed = adata.obsm['X_magic']
@@ -78,6 +78,21 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_
             normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
             cax, _ = matplotlib.colorbar.make_axes(axes)
             matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+    plt.show()
+
+
+def plot_clusters(adata, obsm_key_comm='communities', obsm_key_embed='X_embedding', cmap=None, figsize=(12, 8)):
+    communities = preprocessed_data.obsm[obsm_key_comm]
+    embeddings = preprocessed_data.obsm[obsm_key_embed]
+    # Only 2d embeddings can be visualized :)
+    assert embeddings.shape[-1] == 2
+
+    plt.figure(figsize=figsize)
+    axes = plt.subplot(111)
+    scatter = axes.scatter(embeddings[:, 0], embeddings[:, 1], c=communities, s=8, cmap=cmap)
+    legend1 = axes.legend(*scatter.legend_elements(num=len(np.unique(communities))), loc="upper right", title="Cluster Id")
+    axes.add_artist(legend1)
+    axes.set_axis_off()
     plt.show()
 
 

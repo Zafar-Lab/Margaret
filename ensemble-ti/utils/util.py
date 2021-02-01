@@ -3,6 +3,7 @@ import scanpy as sc
 import pandas as pd
 import phenograph
 
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 
@@ -71,8 +72,8 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
     return X_pca, pca.explained_variance_ratio_, n_comps
 
 
-def determine_cell_clusters(data, k=50, obsm_key='X_pca'):
-    """Run phenograph for clustering cells"""
+def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', **kwargs):
+    """Run clustering of cells"""
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
 
@@ -80,5 +81,8 @@ def determine_cell_clusters(data, k=50, obsm_key='X_pca'):
         X = data.obsm[obsm_key]
     except KeyError:
         raise Exception(f'Either `X_pca` or `{obsm_key}` must be set in the data')
-    communities, _, _ = phenograph.cluster(X, k=k)
-    data.obsm['phenograph_communities'] = communities
+    if backend == 'phenograph':
+        clusters, _, _ = phenograph.cluster(X, **kwargs)
+    elif backend == 'kmeans':
+        clusters = KMeans(**kwargs).fit_predict(X)
+    data.obsm[cluster_key] = clusters

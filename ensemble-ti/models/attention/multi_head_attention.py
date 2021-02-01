@@ -1,15 +1,7 @@
-####################################################################
-# Title: MultiHead attention module
-# Author: Kushagra Pandey
-# Email: kp12@iitbbs.ac.in
-####################################################################
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-import models.layers as L
-from .self_attention import SelfAttention
+from models.attention.self_attention import SelfAttention
 
 
 class MultiHeadAttention(nn.Module):
@@ -54,4 +46,33 @@ class MultiHeadAttention(nn.Module):
 
         # Apply a linear transformation
         x = self.conv(x)
+        return x
+
+
+class AttentionHead(nn.Module):
+    def __init__(self, inplanes, num_heads, mh_dropout=0, att_dropout=0):
+        super(AttentionHead, self).__init__()
+        self.inplanes = inplanes
+        self.num_heads = num_heads
+        self.mh_dropout = mh_dropout
+        self.dropout = nn.Dropout(att_dropout)
+
+        self.mh_module = nn.Sequential(
+            nn.GroupNorm(1, self.inplanes),
+            MultiHeadAttention(self.inplanes, self.num_heads, dropout=self.mh_dropout),
+        )
+        self.ff_module = nn.Sequential(
+            nn.GroupNorm(1, self.inplanes),
+            nn.Conv1d(self.inplanes, self.inplanes, 1)
+        )
+    
+    def forward(self, x):
+        # Attention module
+        identity = x
+
+        x = identity + self.dropout(self.mh_module(x))
+
+        # FF Module
+        identity = x
+        x = identity + self.dropout(self.ff_module(x))
         return x

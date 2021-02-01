@@ -90,7 +90,7 @@ def plot_clusters(adata, obsm_key_comm='communities', obsm_key_embed='X_embeddin
     plt.figure(figsize=figsize)
     axes = plt.subplot(111)
     scatter = axes.scatter(embeddings[:, 0], embeddings[:, 1], c=communities, s=8, cmap=cmap)
-    legend1 = axes.legend(*scatter.legend_elements(num=len(np.unique(communities))), loc="upper right", title="Cluster Id")
+    legend1 = axes.legend(*scatter.legend_elements(num=len(np.unique(communities))), loc="center left", title="Cluster Id", bbox_to_anchor=(1, 0.5))
     axes.add_artist(legend1)
     axes.set_axis_off()
     plt.show()

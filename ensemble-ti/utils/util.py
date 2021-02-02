@@ -85,4 +85,4 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
         clusters, _, _ = phenograph.cluster(X, **kwargs)
     elif backend == 'kmeans':
         clusters = KMeans(**kwargs).fit_predict(X)
-    data.obsm[cluster_key] = clusters
+    data.obs[cluster_key] = clusters

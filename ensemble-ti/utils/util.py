@@ -56,7 +56,8 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
 
     if variance is not None:
         # Determine the number of components dynamically
-        pca = PCA(n_components=1000, random_state=random_state)
+        comps_ = X.shape[-1] - 1 if X.shape[-1] < 1000 else 1000
+        pca = PCA(n_components=comps_, random_state=random_state)
         pca.fit(X)
         try:
             n_comps = np.where(np.cumsum(pca.explained_variance_ratio_) > variance)[0][0]

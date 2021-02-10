@@ -7,7 +7,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 
-def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, n_top_genes=1500):
+def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500):
     preprocessed_data = adata.copy()
     print('Preprocessing....')
 
@@ -27,8 +27,9 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
         sc.pp.highly_variable_genes(preprocessed_data, n_top_genes=n_top_genes, flavor='cell_ranger')
         print(f'\t->Selected the top {n_top_genes} genes')
 
-    print('Applying z-score normalization')
-    sc.pp.scale(preprocessed_data)
+    if scale:
+        print('Applying z-score normalization')
+        sc.pp.scale(preprocessed_data)
     print(f'Pre-processing complete. Updated data shape: {preprocessed_data.shape}')
     return preprocessed_data
 
@@ -86,7 +87,10 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
     except KeyError:
         raise Exception(f'Either `X_pca` or `{obsm_key}` must be set in the data')
     if backend == 'phenograph':
-        clusters, _, _ = phenograph.cluster(X, **kwargs)
+        clusters, _, score = phenograph.cluster(X, **kwargs)
     elif backend == 'kmeans':
-        clusters = KMeans(**kwargs).fit_predict(X)
+        kmeans = KMeans(**kwargs)
+        clusters = kmeans.fit_predict(X)
+        score = kmeans.score
     data.obs[cluster_key] = clusters
+    return clusters, score

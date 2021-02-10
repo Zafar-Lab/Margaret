@@ -51,7 +51,7 @@ class Embedding:
             res = diffmap(X)
             eigenvectors = diffmap.determine_multiscale_space(res['eigenvalues'], res['eigenvectors'])
             adata.obsm['diffusion_T'] = res['T']
-            adata.obsm['diffusion_eigenvectors'] = eigenvectors
+            adata.obsm['X_diffmap'] = eigenvectors
             adata.uns['diffusion_eigenvalues'] = res['eigenvalues']
             adata.obsm['diffusion_kernel'] = res['kernel']
         elif backend == 'lle':

@@ -26,6 +26,9 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
     if use_hvg:
         sc.pp.highly_variable_genes(preprocessed_data, n_top_genes=n_top_genes, flavor='cell_ranger')
         print(f'\t->Selected the top {n_top_genes} genes')
+
+    print('Applying z-score normalization')
+    sc.pp.scale(preprocessed_data)
     print(f'Pre-processing complete. Updated data shape: {preprocessed_data.shape}')
     return preprocessed_data
 

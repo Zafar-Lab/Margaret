@@ -3,10 +3,11 @@ import scanpy as sc
 import pandas as pd
 import phenograph
 
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 
-def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, n_top_genes=1500):
+def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500):
     preprocessed_data = adata.copy()
     print('Preprocessing....')
 
@@ -25,6 +26,10 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
     if use_hvg:
         sc.pp.highly_variable_genes(preprocessed_data, n_top_genes=n_top_genes, flavor='cell_ranger')
         print(f'\t->Selected the top {n_top_genes} genes')
+
+    if scale:
+        print('Applying z-score normalization')
+        sc.pp.scale(preprocessed_data)
     print(f'Pre-processing complete. Updated data shape: {preprocessed_data.shape}')
     return preprocessed_data
 
@@ -55,7 +60,8 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
 
     if variance is not None:
         # Determine the number of components dynamically
-        pca = PCA(n_components=1000, random_state=random_state)
+        comps_ = X.shape[-1] - 1 if X.shape[-1] < 1000 else 1000
+        pca = PCA(n_components=comps_, random_state=random_state)
         pca.fit(X)
         try:
             n_comps = np.where(np.cumsum(pca.explained_variance_ratio_) > variance)[0][0]
@@ -71,8 +77,8 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
     return X_pca, pca.explained_variance_ratio_, n_comps
 
 
-def determine_cell_clusters(data, k=50, obsm_key='X_pca'):
-    """Run phenograph for clustering cells"""
+def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', **kwargs):
+    """Run clustering of cells"""
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
 
@@ -80,5 +86,11 @@ def determine_cell_clusters(data, k=50, obsm_key='X_pca'):
         X = data.obsm[obsm_key]
     except KeyError:
         raise Exception(f'Either `X_pca` or `{obsm_key}` must be set in the data')
-    communities, _, _ = phenograph.cluster(X, k=k)
-    data.obsm['phenograph_communities'] = communities
+    if backend == 'phenograph':
+        clusters, _, score = phenograph.cluster(X, **kwargs)
+    elif backend == 'kmeans':
+        kmeans = KMeans(**kwargs)
+        clusters = kmeans.fit_predict(X)
+        score = kmeans.score
+    data.obs[cluster_key] = clusters
+    return clusters, score

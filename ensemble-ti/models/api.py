@@ -38,7 +38,7 @@ class Embedding:
         self.kwargs = kwargs
         self.random_state = random_state
 
-    def fit_transform(self, adata, obsm_key='X_pca', dr_method='diffmap', n_comps=10, **kwargs):
+    def fit_transform(self, adata, obsm_key='X_pca', backend='diffmap', n_comps=10, **kwargs):
         if not isinstance(adata, sc.AnnData):
             raise ValueError(f'Expected data to be of type sc.AnnData got {type(adata)}')
         try:
@@ -46,21 +46,21 @@ class Embedding:
         except KeyError:
             raise Exception(f'{obsm_key} must be present before computing the embedding')
 
-        if dr_method == 'diffmap':
+        if backend == 'diffmap':
             diffmap = DiffusionMap(n_components=n_comps, random_state=self.random_state, **kwargs)
             res = diffmap(X)
             eigenvectors = diffmap.determine_multiscale_space(res['eigenvalues'], res['eigenvectors'])
             adata.obsm['diffusion_T'] = res['T']
-            adata.obsm['diffusion_eigenvectors'] = eigenvectors
+            adata.obsm['X_diffmap'] = eigenvectors
             adata.uns['diffusion_eigenvalues'] = res['eigenvalues']
             adata.obsm['diffusion_kernel'] = res['kernel']
-        elif dr_method == 'lle':
+        elif backend == 'lle':
             lle = LocallyLinearEmbedding(n_components=n_comps, random_state=self.random_state, **kwargs)
             X_lle = lle.fit_transform(X)
             adata.obsm['X_lle'] = X_lle
-        elif dr_method == 'isomap':
+        elif backend == 'isomap':
             isomap = Isomap(n_components=n_comps, **kwargs)
             X_isomap = isomap.fit_transform(X)
             adata.obsm['X_isomap'] = X_isomap
         else:
-            raise ValueError(f'Unsupported method param value: {dr_method}')
+            raise ValueError(f'Unsupported method param value: {backend}')

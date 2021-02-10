@@ -12,7 +12,7 @@ class MetricDataset(Dataset):
             raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
         self.data = data
         try:
-            self.cluster_inds = data.obsm[obsm_cluster_key]
+            self.cluster_inds = data.obs[obsm_cluster_key]
         except KeyError:
             raise Exception(f'`{obsm_cluster_key}` must be set in the data')
         self.X = self.data.obsm[obsm_data_key]

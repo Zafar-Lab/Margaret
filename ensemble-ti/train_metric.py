@@ -3,8 +3,10 @@ import os
 import time
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 from datasets.metric import MetricDataset
+from datasets.np import NpDataset
 from models.metric import MetricEncoder
 from utils.trainer import MetricTrainer
 from utils.util import determine_cell_clusters

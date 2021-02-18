@@ -1,4 +1,7 @@
-library(anndata)
+library(reticulate)
+
+py_anndata = import("anndata", convert=FALSE)
+
 
 args = commandArgs(trailingOnly=TRUE)
 if(length(args) == 0 || length(args) == 1) {
@@ -16,7 +19,7 @@ cell_ids = dataset$cell_ids
 feature_ids = dataset$prior_information$features_id
 
 # Unstructured info (like prior knowledge of start cells etc.)
-uns_info = list(
+uns_info = dict(
     milestone_percentages = dataset$milestone_percentages,
     milestone_network = dataset$milestone_network,
     start_id = dataset$prior_information$start_id,
@@ -26,12 +29,11 @@ uns_info = list(
 )
 
 # Construct the AnnData object
-ad = AnnData(X=counts)
+ad = py_anndata$AnnData(X=counts, uns=uns_info)
 ad$obs_names = cell_ids
 ad$var_names = feature_ids
-ad$uns = uns_info
 
 # Write the AnnData object (loom format)
-write_loom(ad, write_path)
+ad$write(write_path)
 
 print("AnnData file written successfully!")

@@ -13,7 +13,7 @@ from utils.util import determine_cell_clusters
 
 
 def train_metric_learner(
-    adata, n_episodes=10, n_metric_epochs=20, code_size=10, obsm_data_key='X_pca',
+    adata, n_episodes=10, n_metric_epochs=10, code_size=10, obsm_data_key='X_pca',
     random_state=0, save_path=os.getcwd(), backend='kmeans', cluster_kwargs={}
 ):
     X = adata.obsm[obsm_data_key]
@@ -65,7 +65,7 @@ def train_metric_learner(
         clustering_scores.append(score)
 
         # Update the dataset
-        dataset = MetricDataset(preprocessed_data, obsm_data_key=obsm_data_key, obsm_cluster_key='metric_clusters')
+        dataset = MetricDataset(adata, obsm_data_key=obsm_data_key, obsm_cluster_key='metric_clusters')
         cluster_record.append(dataset.num_clusters)
         trainer.update_dataset(dataset)
         print(f'Time Elapsed: {time.time() - epoch_start_time}s')

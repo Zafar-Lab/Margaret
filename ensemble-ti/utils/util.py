@@ -87,9 +87,18 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
         raise Exception(f'Either `X_pca` or `{obsm_key}` must be set in the data')
     if backend == 'phenograph':
         clusters, _, score = phenograph.cluster(X, **kwargs)
+        data.obs[cluster_key] = clusters
     elif backend == 'kmeans':
         kmeans = KMeans(**kwargs)
         clusters = kmeans.fit_predict(X)
         score = kmeans.inertia_
-    data.obs[cluster_key] = clusters
+        data.obs[cluster_key] = clusters
+    elif backend == 'louvain':
+        sc.tl.louvain(data, key_added=cluster_key, **kwargs)
+        clusters = data.obs[cluster_key]
+        score = None
+    elif backend == 'leiden':
+        sc.tl.leiden(data, key_added=cluster_key, **kwargs)
+        clusters = data.obs[cluster]
+        score = None
     return clusters, score

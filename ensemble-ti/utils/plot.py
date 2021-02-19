@@ -9,9 +9,11 @@ from matplotlib import cm
 from sklearn.manifold import TSNE
 
 
-def plot_embeddings(X, **kwargs):
+def plot_embeddings(X, figsize=None, **kwargs):
     assert X.shape[-1] == 2
-    plt.scatter(X_embedded[:, 0], X_embedded[:, 1], **kwargs)
+    plt.figure(figsize=figsize)
+    plt.scatter(X[:, 0], X[:, 1], **kwargs)
+    plt.gca().set_axis_off()
     plt.show()
 
 

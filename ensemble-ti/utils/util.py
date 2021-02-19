@@ -7,7 +7,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 
-def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500):
+def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500, pseudo_count=1.0):
     preprocessed_data = adata.copy()
     print('Preprocessing....')
 
@@ -20,7 +20,7 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
         print(f'\t->Removed genes expressed in <{min_cells} cells')
 
     sc.pp.normalize_total(preprocessed_data)
-    log_transform(preprocessed_data)
+    log_transform(preprocessed_data, pseudo_count=pseudo_count)
     print('\t->Normalized data')
 
     if use_hvg:
@@ -34,8 +34,7 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
     return preprocessed_data
 
 
-def log_transform(data, pseudo_count=0.1):
-    # Code taken from Palantir
+def log_transform(data, pseudo_count=1):
     if type(data) is sc.AnnData:
         data.X = np.log2(data.X + pseudo_count) - np.log2(pseudo_count)
     else:
@@ -91,6 +90,6 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
     elif backend == 'kmeans':
         kmeans = KMeans(**kwargs)
         clusters = kmeans.fit_predict(X)
-        score = kmeans.score
+        score = kmeans.inertia_
     data.obs[cluster_key] = clusters
     return clusters, score

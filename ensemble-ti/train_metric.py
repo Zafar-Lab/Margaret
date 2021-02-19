@@ -3,8 +3,10 @@ import os
 import time
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 from datasets.metric import MetricDataset
+from datasets.np import NpDataset
 from models.metric import MetricEncoder
 from utils.trainer import MetricTrainer
 from utils.util import determine_cell_clusters
@@ -19,6 +21,7 @@ def train_metric_learner(
     cluster_record = []
 
     # Generate initial clusters
+    print('Generating initial clusters')
     communities, score = determine_cell_clusters(
         adata, obsm_key=obsm_data_key, backend=backend, cluster_key='metric_clusters', **cluster_kwargs
     )
@@ -36,7 +39,7 @@ def train_metric_learner(
     model = MetricEncoder(infeatures, code_size=code_size).cuda()
 
     # Trainer
-    trainer = MetricTrainer(dataset, model, train_loss)
+    trainer = MetricTrainer(dataset, model, train_loss, random_state=random_state)
 
     for episode_idx in range(n_episodes):
         epoch_start_time = time.time()

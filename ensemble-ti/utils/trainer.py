@@ -183,6 +183,22 @@ class AETrainer(UnsupervisedTrainer):
         return epoch_loss/ len(self.train_loader)
 
 
+class SparseAETrainer(UnsupervisedTrainer):
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        tk0 = self.train_loader
+        for idx, data_batch in enumerate(tk0):
+            self.optimizer.zero_grad()
+            data_batch = data_batch.to(self.device)
+            z, predictions = self.model(data_batch)
+            loss = self.train_criterion(data_batch, predictions) + torch.norm(z, p=1)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
+        return epoch_loss/ len(self.train_loader)
+
+
 class AEMixupTrainer(UnsupervisedTrainer):
     def train_one_epoch(self):
         self.model.train()

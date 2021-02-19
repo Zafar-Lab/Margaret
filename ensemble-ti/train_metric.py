@@ -60,8 +60,9 @@ def train_metric_learner(
 
         # Generate new cluster assignments
         communities, score = determine_cell_clusters(
-            adata, obsm_key=obsm_data_key, backend=backend, cluster_key='metric_clusters', **cluster_kwargs
+            adata, obsm_key='X_embedding', backend=backend, cluster_key='metric_clusters', **cluster_kwargs
         )
+        print(score)
         clustering_scores.append(score)
 
         # Update the dataset

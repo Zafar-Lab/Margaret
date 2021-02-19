@@ -95,10 +95,14 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
         data.obs[cluster_key] = clusters
     elif backend == 'louvain':
         sc.tl.louvain(data, key_added=cluster_key, **kwargs)
+        data.obs[cluster_key] = data.obs[cluster_key].to_numpy().astype(np.int)
         clusters = data.obs[cluster_key]
         score = None
     elif backend == 'leiden':
         sc.tl.leiden(data, key_added=cluster_key, **kwargs)
+        data.obs[cluster_key] = data.obs[cluster_key].to_numpy().astype(np.int)
         clusters = data.obs[cluster]
         score = None
+    else:
+        raise NotImplementedError(f'The backend {backend} is not supported yet!')
     return clusters, score

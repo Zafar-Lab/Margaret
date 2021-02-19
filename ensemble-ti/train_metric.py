@@ -14,7 +14,7 @@ from utils.util import determine_cell_clusters
 
 def train_metric_learner(
     adata, n_episodes=10, n_metric_epochs=10, code_size=10, obsm_data_key='X_pca',
-    random_state=0, save_path=os.getcwd(), backend='kmeans', cluster_kwargs={}
+    random_state=0, save_path=os.getcwd(), backend='kmeans', nn_kwargs={}, cluster_kwargs={}
 ):
     X = adata.obsm[obsm_data_key]
     clustering_scores = []
@@ -23,7 +23,7 @@ def train_metric_learner(
     # Generate initial clusters
     print('Generating initial clusters')
     communities, score = determine_cell_clusters(
-        adata, obsm_key=obsm_data_key, backend=backend, cluster_key='metric_clusters', **cluster_kwargs
+        adata, obsm_key=obsm_data_key, backend=backend, cluster_key='metric_clusters', nn_kwargs=nn_kwargs, **cluster_kwargs
     )
     clustering_scores.append(score)
 
@@ -60,7 +60,7 @@ def train_metric_learner(
 
         # Generate new cluster assignments using the obtained embedding
         communities, score = determine_cell_clusters(
-            adata, obsm_key='X_embedding', backend=backend, cluster_key='metric_clusters', **cluster_kwargs
+            adata, obsm_key='X_embedding', backend=backend, cluster_key='metric_clusters', nn_kwargs=nn_kwargs, **cluster_kwargs
         )
         clustering_scores.append(score)
 

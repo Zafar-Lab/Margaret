@@ -76,11 +76,10 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
     return X_pca, pca.explained_variance_ratio_, n_comps
 
 
-def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', **kwargs):
+def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', nn_kwargs={}, **kwargs):
     """Run clustering of cells"""
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
-
     try:
         X = data.obsm[obsm_key]
     except KeyError:
@@ -94,11 +93,15 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
         score = kmeans.inertia_
         data.obs[cluster_key] = clusters
     elif backend == 'louvain':
+        # Compute nearest neighbors
+        sc.pp.neighbors(data, use_rep=obsm_key, **nn_kwargs)
         sc.tl.louvain(data, key_added=cluster_key, **kwargs)
         data.obs[cluster_key] = data.obs[cluster_key].to_numpy().astype(np.int)
         clusters = data.obs[cluster_key]
         score = None
     elif backend == 'leiden':
+        # Compute nearest neighbors
+        sc.pp.neighbors(data, use_rep=obsm_key, **nn_kwargs)
         sc.tl.leiden(data, key_added=cluster_key, **kwargs)
         data.obs[cluster_key] = data.obs[cluster_key].to_numpy().astype(np.int)
         clusters = data.obs[cluster_key]
@@ -106,3 +109,4 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
     else:
         raise NotImplementedError(f'The backend {backend} is not supported yet!')
     return clusters, score
+

@@ -76,20 +76,46 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
     return X_pca, pca.explained_variance_ratio_, n_comps
 
 
-def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', **kwargs):
+def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', nn_kwargs={}, **kwargs):
     """Run clustering of cells"""
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
-
     try:
         X = data.obsm[obsm_key]
     except KeyError:
         raise Exception(f'Either `X_pca` or `{obsm_key}` must be set in the data')
     if backend == 'phenograph':
         clusters, _, score = phenograph.cluster(X, **kwargs)
+        data.obs[cluster_key] = clusters
     elif backend == 'kmeans':
         kmeans = KMeans(**kwargs)
         clusters = kmeans.fit_predict(X)
         score = kmeans.inertia_
-    data.obs[cluster_key] = clusters
+        data.obs[cluster_key] = clusters
+    elif backend == 'louvain':
+        # Compute nearest neighbors
+        sc.pp.neighbors(data, use_rep=obsm_key, **nn_kwargs)
+        sc.tl.louvain(data, key_added=cluster_key, **kwargs)
+        data.obs[cluster_key] = data.obs[cluster_key].to_numpy().astype(np.int)
+        clusters = data.obs[cluster_key]
+        score = None
+    elif backend == 'leiden':
+        # Compute nearest neighbors
+        sc.pp.neighbors(data, use_rep=obsm_key, **nn_kwargs)
+        sc.tl.leiden(data, key_added=cluster_key, **kwargs)
+        data.obs[cluster_key] = data.obs[cluster_key].to_numpy().astype(np.int)
+        clusters = data.obs[cluster_key]
+        score = None
+    else:
+        raise NotImplementedError(f'The backend {backend} is not supported yet!')
     return clusters, score
+
+
+def get_start_cell_cluster_id(data, start_cell_ids, communities):
+    start_cluster_ids = set()
+    obs_ = preprocessed_data.obs_names
+    for cell_id in start_cell_ids:
+        start_cell_idx = np.where(obs_ == cell_id)[0][0]
+        start_cell_cluster_idx = communities[start_cell_idx]
+        start_cluster_ids.add(start_cell_cluster_idx)
+    return start_cluster_ids

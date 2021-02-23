@@ -1,1 +1,0 @@
-1) Depending on the dimensionality reduction methods, the preprocess steps can vary (For VAE might differ from DAE and others)

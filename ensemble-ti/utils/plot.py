@@ -184,3 +184,38 @@ def plot_connectivity_graph(embeddings, communities, cluster_connectivities, mod
     plt.axis('off')
     edge_weights = [0.2 + w for _, _, w in g.edges.data("weight")]
     nx.draw_networkx(g, pos=node_positions, cmap=cmap, node_color=np.unique(communities), font_color=font_color, node_size=node_size, width=edge_weights)
+
+
+def plot_gt_milestone_network(ad, uns_mn_key='milestone_network', start_node_color='red', node_color='yellow', figsize=(12, 12), node_size=800, font_size=9):
+    # NOTE: Since the dyntoy tool does not provide the spatial position
+    # of the milestones, this function uses spring_layout to plot the
+    # node positions. Hence the displayed graph is not guaranteed to produce
+    # accurate spatial embeddings of milestones in the 2d plane.
+    if uns_mn_key not in ad.uns_keys():
+        raise Exception(f'Milestone network not found in uns.{uns_mn_key}')
+
+    # Get a set of unique milestones
+    mn = ad.uns[uns_mn_key]
+    from_milestones = set(mn['from'].unique())
+    to_milestones = set(mn['to'].unique())
+    milestones = from_milestones.union(to_milestones)
+
+    # Construct the milestone network
+    milestone_network = nx.DiGraph()
+    start_milestones = [ad.uns['start_milestones']] if isinstance(ad.uns['start_milestones'], str) else list(ad.uns['start_milestones'])
+    color_map = []
+    for milestone in milestones:
+        milestone_network.add_node(milestone)
+        if milestone in start_milestones:
+            color_map.append(start_node_color)
+        else:
+            color_map.append(node_color)
+
+    for idx, (f, t) in enumerate(zip(mn['from'], mn['to'])):
+        milestone_network.add_edge(f, t, weight=mn['length'][idx])
+
+    # Draw graph
+    plt.figure(figsize=figsize)
+    plt.axis('off')
+    edge_weights = [1 + w for _, _, w in milestone_network.edges.data("weight")]
+    nx.draw_networkx(milestone_network, pos=nx.spring_layout(milestone_network), node_size=node_size, width=edge_weights, node_color=color_map, font_size=font_size)

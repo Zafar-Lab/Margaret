@@ -123,7 +123,7 @@ def plot_pseudotime(adata, cmap=None, figsize=None, marker_size=5):
 
 
 def plot_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids, cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black'):
-    g = compute_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids)
+    g, node_positions = compute_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids)
     # Draw the graph
     plt.figure(figsize=figsize)
     plt.axis('off')
@@ -132,7 +132,7 @@ def plot_trajectory_graph(embeddings, communities, cluster_connectivities, start
 
 
 def plot_connectivity_graph(embeddings, communities, cluster_connectivities, mode='undirected', cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black'):
-    g = compute_connectivity_graph(embeddings, communities, cluster_connectivities, mode=mode)
+    g, node_positions = compute_connectivity_graph(embeddings, communities, cluster_connectivities, mode=mode)
     # Draw the graph
     plt.figure(figsize=figsize)
     plt.axis('off')

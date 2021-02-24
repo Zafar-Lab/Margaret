@@ -113,7 +113,7 @@ def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluste
 
 def get_start_cell_cluster_id(data, start_cell_ids, communities):
     start_cluster_ids = set()
-    obs_ = preprocessed_data.obs_names
+    obs_ = data.obs_names
     for cell_id in start_cell_ids:
         start_cell_idx = np.where(obs_ == cell_id)[0][0]
         start_cell_cluster_idx = communities[start_cell_idx]

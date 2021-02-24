@@ -1,4 +1,5 @@
 import networkx as nx
+import numpy as np
 
 
 def compute_gt_milestone_network(ad, uns_mn_key='milestone_network', mode='directed'):
@@ -48,7 +49,7 @@ def compute_connectivity_graph(embeddings, communities, cluster_connectivities, 
         for col_id in range(n_cols):
             if cluster_connectivities[row_id][col_id] > 0:
                 g.add_edge(cluster_ids[row_id], cluster_ids[col_id], weight=cluster_connectivities[row_id][col_id])
-    return g
+    return g, node_positions
 
 
 def compute_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids):
@@ -81,4 +82,4 @@ def compute_trajectory_graph(embeddings, communities, cluster_connectivities, st
                 if visited[id] is True:
                     continue
                 g.add_edge(current_node_id, id, weight=cluster_connectivities[current_node_id][id])
-    return g
+    return g, node_positions

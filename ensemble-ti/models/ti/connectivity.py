@@ -2,6 +2,7 @@ import numpy as np
 
 
 def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
+    N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
 
     # Create cluster index
@@ -53,7 +54,7 @@ def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
             # Only add non-spurious edges based on a threshold
             if undirected_z_score[i][j] >= threshold:
                 undirected_cluster_connectivity[i][j] = (e_sym - e_sym_random) / (e_i + e_j - e_sym_random)
-        return undirected_cluster_connectivity, undirected_z_score
+    return undirected_cluster_connectivity, undirected_z_score
 
 
 def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):

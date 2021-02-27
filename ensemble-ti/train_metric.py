@@ -14,7 +14,7 @@ from utils.util import determine_cell_clusters
 
 def train_metric_learner(
     adata, n_episodes=10, n_metric_epochs=10, code_size=10, obsm_data_key='X_pca',
-    random_state=0, save_path=os.getcwd(), backend='kmeans', nn_kwargs={}, cluster_kwargs={}
+    random_state=0, save_path=os.getcwd(), backend='kmeans', nn_kwargs={}, trainer_kwargs={}, cluster_kwargs={}
 ):
     X = adata.obsm[obsm_data_key]
     clustering_scores = []
@@ -39,7 +39,7 @@ def train_metric_learner(
     model = MetricEncoder(infeatures, code_size=code_size).cuda()
 
     # Trainer
-    trainer = MetricTrainer(dataset, model, train_loss, random_state=random_state)
+    trainer = MetricTrainer(dataset, model, train_loss, random_state=random_state, **trainer_kwargs)
 
     for episode_idx in range(n_episodes):
         epoch_start_time = time.time()
@@ -64,7 +64,7 @@ def train_metric_learner(
         )
         clustering_scores.append(score)
 
-        # Update the dataset
+        # Update the dataset as the cluster assignments have changed
         dataset = MetricDataset(adata, obsm_data_key=obsm_data_key, obsm_cluster_key='metric_clusters')
         cluster_record.append(dataset.num_clusters)
         trainer.update_dataset(dataset)

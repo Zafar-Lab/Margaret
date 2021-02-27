@@ -33,7 +33,7 @@ class MetricDataset(Dataset):
         pos_sample = self.X[positive_idx]
 
         # Sample the negative label and sample
-        neg_class = np.random.choice(set(self.unique_clusters) - set([pos_class]))
+        neg_class = np.random.choice(list(set(self.unique_clusters) - set([pos_class])))
         neg_class_choices = self.cluster_inds == neg_class
         neg_sample = self.X[np.random.choice(self.indices[neg_class_choices])]
 

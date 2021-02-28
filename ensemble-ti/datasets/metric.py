@@ -29,7 +29,7 @@ class MetricDataset(Dataset):
         positive_idx = idx
         
         while positive_idx == idx:
-            positive_idx = np.random.choice(self.indices)
+            positive_idx = np.random.choice(self.indices[self.cluster_inds == pos_class])
         pos_sample = self.X[positive_idx]
 
         # Sample the negative label and sample

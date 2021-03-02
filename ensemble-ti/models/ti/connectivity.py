@@ -1,5 +1,6 @@
-# TODO: Add a decorator to compute start and end time for each operation
 import numpy as np
+
+from utils.util import compute_runtime
 
 
 def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
@@ -142,6 +143,7 @@ def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='
     return K
 
 
+@compute_runtime
 def compute_katz_index(adata, adj, beta=0.01, obsm_key='katz_scores'):
     N = adata.X.shape[0]
     S = np.linalg.inv(np.eye(N) - beta * adj) - np.eye(N)

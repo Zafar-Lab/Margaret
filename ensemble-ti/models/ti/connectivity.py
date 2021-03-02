@@ -102,3 +102,40 @@ def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
             if directed_z_score[i][j] >= threshold:
                 directed_cluster_connectivity[i][j] = (e_ij - e_ij_random) / (e_i - e_ij_random)
     return directed_cluster_connectivity, directed_z_score
+
+
+def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='undirected'):
+    N = communities.shape[0]
+    n_communities = np.unique(communities).shape[0]
+
+    # Create cluster index
+    clusters = []
+    for idx in range(n_communities):
+        cluster_idx = communities == idx
+        clusters.append(cluster_idx)
+
+    K = np.zeros((n_communities, n_communities))
+
+    for i in range(n_communities):
+        cluster_i = clusters[i]
+        katz_i = S[cluster_i, :]
+        for j in range(n_communities):
+            if i == j:
+                continue
+            cluster_j = clusters[j]
+            katz_ij = katz_i[:, cluster_j]
+            K[i, j] = np.sum(katz_ij)
+
+    # Softmax normalize the rows
+    K = np.exp(K)
+    K = K / np.sum(K, axis=1)[:, np.newaxis]
+
+    # Make the connectivity measure symmetric for the undirected case
+    if mode == 'undirected':
+        K = (K + K.T)/2
+        K[K < threshold] = 0
+    else:
+        K[K < threshold] = 0
+        # Renormalize for the directed case
+        K = K / np.sum(K, axis=1)[:, np.newaxis]
+    return K

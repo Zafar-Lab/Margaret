@@ -1,3 +1,4 @@
+# TODO: Add a decorator to compute start and end time for each operation
 import numpy as np
 
 
@@ -139,3 +140,9 @@ def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='
         # Renormalize for the directed case
         K = K / np.sum(K, axis=1)[:, np.newaxis]
     return K
+
+
+def compute_katz_index(adata, adj, beta=0.01, obsm_key='katz_scores'):
+    N = adata.X.shape[0]
+    S = np.linalg.inv(np.eye(N) - beta * adj) - np.eye(N)
+    adata.obsm[obsm_key] = S

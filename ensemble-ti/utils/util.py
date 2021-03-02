@@ -120,7 +120,7 @@ def get_start_cell_cluster_id(data, start_cell_ids, communities):
         start_cell_idx = np.where(obs_ == cell_id)[0][0]
         start_cell_cluster_idx = communities[start_cell_idx]
         start_cluster_ids.add(start_cell_cluster_idx)
-    return start_cluster_ids'
+    return start_cluster_ids
 
 
 def compute_runtime(func):

@@ -1,8 +1,10 @@
 import numpy as np
-import scanpy as sc
 import pandas as pd
 import phenograph
+import scanpy as sc
+import time
 
+from functools import wraps
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
@@ -119,3 +121,14 @@ def get_start_cell_cluster_id(data, start_cell_ids, communities):
         start_cell_cluster_idx = communities[start_cell_idx]
         start_cluster_ids.add(start_cell_cluster_idx)
     return start_cluster_ids
+
+
+def compute_runtime(func):
+    @wraps(func)
+    def f(*args, **kwargs):
+        start_time = time.time()
+        r = func(*args, **kwargs)
+        end_time = time.time()
+        print(f'Runtime for {func.__name__}: {end_time - start_time}')
+        return r
+    return f

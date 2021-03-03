@@ -3,7 +3,7 @@ import scipy.stats as stats
 
 from scipy.sparse.csgraph import dijkstra
 from sklearn.metrics import pairwise_distances
-from utils.util import get_start_cell_cluster_id
+from utils.util import get_start_cell_cluster_id, compute_runtime
 
 
 @compute_runtime

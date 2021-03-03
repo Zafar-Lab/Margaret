@@ -127,7 +127,8 @@ def compute_runtime(func):
     @wraps(func)
     def f(*args, **kwargs):
         start_time = time.time()
-        func(*args, **kwargs)
+        r = func(*args, **kwargs)
         end_time = time.time()
         print(f'Runtime for {func.__name__}: {end_time - start_time}')
+        return r
     return f

@@ -60,6 +60,9 @@ class UnsupervisedTrainer:
         for epoch_idx in tk0:
             avg_epoch_loss = self.train_one_epoch()
 
+            # LR scheduler step
+            self.lr_scheduler.step()
+
             # Build loss profile
             self.loss_profile.append(avg_epoch_loss)
 

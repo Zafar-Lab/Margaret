@@ -141,7 +141,7 @@ class UnsupervisedTrainer:
     def update_dataset(self, dataset):
         self.train_dataset = dataset
         # Update the training loader with the new dataset
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=False, num_workers=0)
+        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=0)
 
 
 class VAETrainer(UnsupervisedTrainer):

@@ -25,7 +25,7 @@ class UnsupervisedTrainer:
         self.loss_profile = []
         self.batch_size = batch_size
 
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=False, num_workers=0)
+        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=0)
         if self.val_dataset is not None:
             self.val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, drop_last=False, num_workers=0)
         self.model = model.to(self.device)

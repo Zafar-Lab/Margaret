@@ -39,6 +39,7 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
 
             # Compute shortest path distances within the start cluster
             adj_sc = adj_dist.loc[clusters[sc_id], clusters[sc_id]]
+            adj_sc = _connect_graph(adj_sc, data.loc[clusters[sc_id], :], np.where(adj_sc.index == s)[0][0])
             dists_sc = dijkstra(adj_sc, indices=np.where(adj_sc.index == s)[0][0])
             pseudotime[clusters[sc_id]] = dists_sc
             computed.append(sc_id)

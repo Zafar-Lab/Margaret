@@ -25,7 +25,7 @@ class UnsupervisedTrainer:
         self.loss_profile = []
         self.batch_size = batch_size
 
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=False, num_workers=0)
+        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=0)
         if self.val_dataset is not None:
             self.val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size, drop_last=False, num_workers=0)
         self.model = model.to(self.device)
@@ -59,6 +59,9 @@ class UnsupervisedTrainer:
         tk0 = tqdm(range(start_epoch, num_epochs))
         for epoch_idx in tk0:
             avg_epoch_loss = self.train_one_epoch()
+
+            # LR scheduler step
+            self.lr_scheduler.step()
 
             # Build loss profile
             self.loss_profile.append(avg_epoch_loss)
@@ -138,7 +141,7 @@ class UnsupervisedTrainer:
     def update_dataset(self, dataset):
         self.train_dataset = dataset
         # Update the training loader with the new dataset
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=False, num_workers=0)
+        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True, num_workers=0)
 
 
 class VAETrainer(UnsupervisedTrainer):

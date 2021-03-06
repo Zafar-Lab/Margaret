@@ -31,8 +31,9 @@ def generate_plot_embeddings(X, method='tsne', **kwargs):
         X_tsne = tsne.fit_transform(X)
         return X_tsne
     elif method == 'umap':
-        u = umap.UMAP()
+        u = umap.UMAP(n_components=2, **kwargs)
         X_umap = u.fit_transform(X)
+        return X_umap
     else:
         raise ValueError(f'Unsupported embedding method type: {method}')
 

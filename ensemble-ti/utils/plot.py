@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import phate
+import umap
  
 from matplotlib import cm
 from sklearn.manifold import TSNE
@@ -29,6 +30,10 @@ def generate_plot_embeddings(X, method='tsne', **kwargs):
         tsne = TSNE(n_components=2, **kwargs)
         X_tsne = tsne.fit_transform(X)
         return X_tsne
+    elif method == 'umap':
+        u = umap.UMAP(n_components=2, **kwargs)
+        X_umap = u.fit_transform(X)
+        return X_umap
     else:
         raise ValueError(f'Unsupported embedding method type: {method}')
 
@@ -101,23 +106,23 @@ def plot_clusters(adata, cluster_key='communities', embedding_key='X_embedding',
     plt.show()
 
 
-def plot_pseudotime(adata, cmap=None, figsize=None, marker_size=5):
-    pseudotime = adata.obsm['X_pseudotime']
-    X_embedded = adata.obsm['X_embedded']
+def plot_pseudotime(adata, embedding_key='X_embedded', pseudotime_key='X_pseudotime',cmap=None, figsize=None, marker_size=5, **kwargs):
+    pseudotime = adata.obs[pseudotime_key]
+    X_embedded = adata.obsm[embedding_key]
 
     # Plot
-    axes = plt.subplot(111)
-    axes.scatter(
+    plt.figure(figsize=figsize)
+    plt.scatter(
         X_embedded[:, 0], X_embedded[:, 1], s=marker_size,
-        c=pseudotime, cmap=cmap
+        c=pseudotime, cmap=cmap, **kwargs
     )
-    axes.set_axis_off()
+    plt.gca().set_axis_off()
 
     # Display the Colorbar
     vmin = np.min(pseudotime)
     vmax = np.max(pseudotime)
     normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    cax, _ = matplotlib.colorbar.make_axes(axes)
+    cax, _ = matplotlib.colorbar.make_axes(plt.gca())
     matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
     plt.show()
 

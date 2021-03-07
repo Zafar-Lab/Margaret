@@ -25,7 +25,8 @@ uns_info = dict(
     start_id = dataset$prior_information$start_id,
     start_milestones = dataset$prior_information$start_milestones,
     end_milestones = dataset$prior_information$end_milestones,
-    end_id = dataset$prior_information$end_id
+    end_id = dataset$prior_information$end_id,
+    timecourse = dataset$prior_information$timecourse_continuous
 )
 
 # Construct the AnnData object

@@ -84,7 +84,7 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
         iter += 1
 
     # Add pseudotime to annotated data object
-    ad.obs['pseudotime'] = pseudotime
+    ad.obs['metric_pseudotime'] = pseudotime
     return pseudotime
 
 

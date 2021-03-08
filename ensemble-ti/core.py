@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import os
 import random
 import torch
 import warnings
@@ -53,15 +54,15 @@ def run_metti(ad,
         )
 
     # 2d embedding visualization generation
-    print('Computing 2d embedding visualizations...')
+    print('\nComputing 2d embedding visualizations...')
     ad.obsm['metric_viz_embedding'] = generate_plot_embeddings(
-        ad.obsm['X_embedding'], method=viz_method, random_state=random_state, **viz_kwargs
+        ad.obsm['metric_embedding'], method=viz_method, random_state=random_state, **viz_kwargs
     )
 
     # TI
-    print('Computing trajectory graphs...')
+    print('\nComputing trajectory graphs...')
     communities = ad.obs['metric_clusters'].to_numpy().astype(np.int)
-    X = ad.obsm['X_embedding']
+    X = ad.obsm['metric_embedding']
 
     n_neighbors = n_neighbors_ti
     nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric="euclidean").fit(X)
@@ -78,15 +79,15 @@ def run_metti(ad,
 
     start_cell_ids = ad.uns['start_id']
     start_cluster_ids = get_start_cell_cluster_id(ad, start_cell_ids, communities)
-    g, node_positions = compute_trajectory_graph(ad.obsm['metric_viz_embedding'], communities, cluster_connectivities, start_cluster_ids)
+    g, node_positions = compute_trajectory_graph(ad.obsm['metric_viz_embedding'], communities, connectivity, start_cluster_ids)
     ad.uns['metric_trajectory'] = g
     ad.uns['metric_trajectory_node_positions'] = node_positions
 
-    g, node_positions = compute_connectivity_graph(ad.obsm['metric_viz_embedding'], communities, cluster_connectivities, mode='undirected')
+    g, node_positions = compute_connectivity_graph(ad.obsm['metric_viz_embedding'], communities, un_connectivity, mode='undirected')
     ad.uns['metric_undirected_graph'] = g
     ad.uns['metric_undirected_node_positions'] = node_positions
 
     # Pseudotime computation
-    print('Computing Pseudotime...')
+    print('\nComputing Pseudotime...')
     trajectory_graph = nx.to_numpy_array(ad.uns['metric_trajectory'])
-    pseudotime = compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, trajectory_graph, comm_key='metric_clusters', data_key='X_embedding')
+    pseudotime = compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, trajectory_graph, comm_key='metric_clusters', data_key='metric_embedding')

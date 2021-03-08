@@ -11,6 +11,7 @@ from matplotlib import cm
 from sklearn.manifold import TSNE
 
 from models.ti.graph import compute_connectivity_graph, compute_trajectory_graph
+from utils.util import compute_runtime
 
 
 def plot_embeddings(X, figsize=None, **kwargs):
@@ -21,6 +22,7 @@ def plot_embeddings(X, figsize=None, **kwargs):
     plt.show()
 
 
+@compute_runtime
 def generate_plot_embeddings(X, method='tsne', **kwargs):
     if method == 'phate':
         phate_op = phate.PHATE(**kwargs)

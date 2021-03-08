@@ -74,5 +74,5 @@ def train_metric_learner(
         print(f'Time Elapsed for epoch: {time.time() - epoch_start_time}s')
 
     # Add the modularity score estimates to the adata
-    adata.uns['clustering_scores'] = clustering_scores
-    adata.uns['n_cluster_records'] = cluster_record
+    adata.uns['metric_clustering_scores'] = clustering_scores
+    adata.uns['metric_n_cluster_records'] = cluster_record

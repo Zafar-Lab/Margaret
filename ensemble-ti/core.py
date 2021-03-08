@@ -34,10 +34,29 @@ def seed_everything(seed=0):
     return seed
 
 
-def run_metti(ad, 
+def run_metti(ad,
     n_episodes=10, n_metric_epochs=10, use_rep='X_pca', code_size=10, c_backend='louvain', chkpt_save_path=os.getcwd(), random_state=0,
     cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5
 ):
+    """[summary]
+
+    Args:
+        ad ([type]): [description]
+        n_episodes (int, optional): [description]. Defaults to 10.
+        n_metric_epochs (int, optional): [description]. Defaults to 10.
+        use_rep (str, optional): [description]. Defaults to 'X_pca'.
+        code_size (int, optional): [description]. Defaults to 10.
+        c_backend (str, optional): [description]. Defaults to 'louvain'.
+        chkpt_save_path ([type], optional): [description]. Defaults to os.getcwd().
+        random_state (int, optional): [description]. Defaults to 0.
+        cluster_kwargs (dict, optional): [description]. Defaults to {}.
+        neighbor_kwargs (dict, optional): [description]. Defaults to {}.
+        trainer_kwargs (dict, optional): [description]. Defaults to {}.
+        viz_method (str, optional): [description]. Defaults to 'umap'.
+        viz_kwargs (dict, optional): [description]. Defaults to {}.
+        n_neighbors_ti (int, optional): [description]. Defaults to 30.
+        threshold (float, optional): [description]. Defaults to 0.5.
+    """
     # Seed setting
     seed_everything(seed=random_state)
 

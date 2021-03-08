@@ -9,21 +9,20 @@ from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *
 
 
-def evaluate_clustering(ad, dataset_file_path, results_dir=os.getcwd()):
+def evaluate_clustering(dataset_file_path, results_dir=os.getcwd()):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
         reader = csv.DictReader(fp)
+        datasets = {row['name']: row['path'] for row in reader}
 
-    dataset_names = [row['name'] for row in reader]
-    dataset_paths = [row['path'] for row in reader]
     resolutions = [0.4, 0.6, 0.8, 1.0]
     c_backends = ['louvain', 'leiden']
     results = {}
 
     for backend in c_backends:
-        r = pd.DataFrame(index=dataset_names, columns=resolutions)
-        for name, path in zip(dataset_names, dataset_paths):
+        r = pd.DataFrame(index=datasets.keys(), columns=resolutions)
+        for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
             chkpt_save_path = os.path.join(dataset_path, 'checkpoint')
@@ -64,7 +63,7 @@ def evaluate_clustering(ad, dataset_file_path, results_dir=os.getcwd()):
                 )
 
                 # Plot embeddings
-                plot_path = os.path.join(dataset_path, backend, resolution, 'plots')
+                plot_path = os.path.join(dataset_path, backend, str(resolution), 'plots')
                 os.makedirs(plot_path, exist_ok=True)
                 plot_embeddings(
                     preprocessed_data.obsm['metric_viz_embedding'], save_path=os.path.join(plot_path, 'embedding.png'),
@@ -79,8 +78,10 @@ def evaluate_clustering(ad, dataset_file_path, results_dir=os.getcwd()):
                 # Plot graphs
                 communities = preprocessed_data.obs['metric_clusters']
                 start_cell_ids = preprocessed_data.uns['start_id']
+                start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
                 start_cluster_ids = get_start_cell_cluster_id(preprocessed_data, start_cell_ids, communities)
-                un_connectivity = preprocessed_data.obsm['metric_undirected_connectivities']
+                connectivity = preprocessed_data.uns['metric_directed_connectivities']
+                un_connectivity = preprocessed_data.uns['metric_undirected_connectivities']
                 plot_connectivity_graph(
                     preprocessed_data.obsm['metric_viz_embedding'], communities, un_connectivity, mode='undirected',
                     title=f'undirected_{backend}_{resolution}', save_path=os.path.join(plot_path, 'undirected.png')

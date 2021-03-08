@@ -97,6 +97,7 @@ def run_metti(ad,
     ad.uns['metric_undirected_scores'] = un_scores
 
     start_cell_ids = ad.uns['start_id']
+    start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
     start_cluster_ids = get_start_cell_cluster_id(ad, start_cell_ids, communities)
     g, node_positions = compute_trajectory_graph(ad.obsm['metric_viz_embedding'], communities, connectivity, start_cluster_ids)
     ad.uns['metric_trajectory'] = g

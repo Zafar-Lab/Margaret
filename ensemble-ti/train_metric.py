@@ -9,9 +9,10 @@ from datasets.metric import MetricDataset
 from datasets.np import NpDataset
 from models.metric import MetricEncoder
 from utils.trainer import MetricTrainer
-from utils.util import determine_cell_clusters
+from utils.util import compute_runtime, determine_cell_clusters
 
 
+@compute_runtime
 def train_metric_learner(
     adata, n_episodes=10, n_metric_epochs=10, code_size=10, obsm_data_key='X_pca',
     random_state=0, save_path=os.getcwd(), backend='kmeans', nn_kwargs={}, trainer_kwargs={}, cluster_kwargs={}
@@ -42,6 +43,7 @@ def train_metric_learner(
     trainer = MetricTrainer(dataset, model, train_loss, random_state=random_state, **trainer_kwargs)
 
     for episode_idx in range(n_episodes):
+        print(f'Training for episode: {episode_idx + 1}')
         epoch_start_time = time.time()
         trainer.train(n_metric_epochs, save_path)
 
@@ -56,11 +58,12 @@ def train_metric_learner(
                 embedding.append(model(data.unsqueeze(0)).squeeze().cpu().numpy())
         X_embedding = np.array(embedding)
 
-        adata.obsm['X_embedding'] = X_embedding
+        adata.obsm['metric_embedding'] = X_embedding
 
-        # Generate new cluster assignments using the obtained embedding
+        # Generate new cluster assignments using the obtained embedding\
+        print(f'Re-generating clusters for episode: {episode_idx + 1}')
         communities, score = determine_cell_clusters(
-            adata, obsm_key='X_embedding', backend=backend, cluster_key='metric_clusters', nn_kwargs=nn_kwargs, **cluster_kwargs
+            adata, obsm_key='metric_embedding', backend=backend, cluster_key='metric_clusters', nn_kwargs=nn_kwargs, **cluster_kwargs
         )
         clustering_scores.append(score)
 
@@ -68,7 +71,7 @@ def train_metric_learner(
         dataset = MetricDataset(adata, obsm_data_key=obsm_data_key, obsm_cluster_key='metric_clusters')
         cluster_record.append(dataset.num_clusters)
         trainer.update_dataset(dataset)
-        print(f'Time Elapsed: {time.time() - epoch_start_time}s')
+        print(f'Time Elapsed for epoch: {time.time() - epoch_start_time}s')
 
     # Add the modularity score estimates to the adata
     adata.uns['clustering_scores'] = clustering_scores

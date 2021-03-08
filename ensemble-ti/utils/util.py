@@ -9,6 +9,18 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
 
+def compute_runtime(func):
+    @wraps(func)
+    def f(*args, **kwargs):
+        start_time = time.time()
+        r = func(*args, **kwargs)
+        end_time = time.time()
+        print(f'Runtime for {func.__name__}(): {end_time - start_time}')
+        return r
+    return f
+
+
+@compute_runtime
 def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500, pseudo_count=1.0):
     preprocessed_data = adata.copy()
     print('Preprocessing....')
@@ -30,7 +42,7 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
         print(f'\t->Selected the top {n_top_genes} genes')
 
     if scale:
-        print('Applying z-score normalization')
+        print('\t->Applying z-score normalization')
         sc.pp.scale(preprocessed_data)
     print(f'Pre-processing complete. Updated data shape: {preprocessed_data.shape}')
     return preprocessed_data
@@ -43,6 +55,7 @@ def log_transform(data, pseudo_count=1):
         return np.log2(data + pseudo_count)
 
 
+@compute_runtime
 def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, random_state=0):
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found: {type(data)}')
@@ -78,6 +91,7 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
     return X_pca, pca.explained_variance_ratio_, n_comps
 
 
+@compute_runtime
 def determine_cell_clusters(data, obsm_key='X_pca', backend='phenograph', cluster_key='clusters', nn_kwargs={}, **kwargs):
     """Run clustering of cells"""
     if not isinstance(data, sc.AnnData):
@@ -121,14 +135,3 @@ def get_start_cell_cluster_id(data, start_cell_ids, communities):
         start_cell_cluster_idx = communities[start_cell_idx]
         start_cluster_ids.add(start_cell_cluster_idx)
     return start_cluster_ids
-
-
-def compute_runtime(func):
-    @wraps(func)
-    def f(*args, **kwargs):
-        start_time = time.time()
-        r = func(*args, **kwargs)
-        end_time = time.time()
-        print(f'Runtime for {func.__name__}: {end_time - start_time}')
-        return r
-    return f

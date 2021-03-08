@@ -3,6 +3,7 @@ import numpy as np
 from utils.util import compute_runtime
 
 
+@compute_runtime
 def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
     N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
@@ -59,6 +60,7 @@ def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
     return undirected_cluster_connectivity, undirected_z_score
 
 
+@compute_runtime
 def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
     N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
@@ -106,6 +108,7 @@ def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
     return directed_cluster_connectivity, directed_z_score
 
 
+@compute_runtime
 def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='undirected'):
     N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]

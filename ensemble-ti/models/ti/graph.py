@@ -1,7 +1,10 @@
 import networkx as nx
 import numpy as np
 
+from utils.util import compute_runtime
 
+
+@compute_runtime
 def compute_gt_milestone_network(ad, uns_mn_key='milestone_network', mode='directed'):
 
     # NOTE: Since the dyntoy tool does not provide the spatial position
@@ -31,6 +34,7 @@ def compute_gt_milestone_network(ad, uns_mn_key='milestone_network', mode='direc
     return milestone_network
 
 
+@compute_runtime
 def compute_connectivity_graph(embeddings, communities, cluster_connectivities, mode='undirected'):
     assert mode in ['directed', 'undirected']
     g = nx.Graph() if mode == 'undirected' else nx.DiGraph()
@@ -52,6 +56,7 @@ def compute_connectivity_graph(embeddings, communities, cluster_connectivities, 
     return g, node_positions
 
 
+@compute_runtime
 def compute_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids):
     g = nx.DiGraph()
     node_positions = {}

@@ -2,8 +2,8 @@ import csv
 import os
 import scanpy as sc
 
-from ..core import run_metti
-from ..metrics.ipsen import IpsenMikhailov
+from core import run_metti
+from metrics.ipsen import IpsenMikhailov
 from models.ti.graph import compute_gt_milestone_network
 from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *

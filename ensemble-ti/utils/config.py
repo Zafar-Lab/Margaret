@@ -26,7 +26,7 @@ def configure_device(device):
     if device not in _SUPPORTED_DEVICES:
         raise NotImplementedError(f'The device type `{device}` is not supported')
 
-    if device == 'gpu':
+    if device == 'cuda':
         if not torch.cuda.is_available():
             raise Exception('CUDA support is not available on your platform. Re-run using CPU or TPU mode')
         return 'cuda'

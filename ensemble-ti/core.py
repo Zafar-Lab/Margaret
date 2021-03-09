@@ -12,7 +12,7 @@ from models.ti.graph import compute_gt_milestone_network, compute_connectivity_g
 from models.ti.pseudotime import compute_pseudotime
 from train_metric import train_metric_learner
 from utils.plot import generate_plot_embeddings
-from utils.util import get_start_cell_cluster_id
+from utils.util import get_start_cell_cluster_id, determine_cell_clusters
 
 
 def seed_everything(seed=0):
@@ -38,25 +38,6 @@ def run_metti(ad,
     n_episodes=10, n_metric_epochs=10, use_rep='X_pca', code_size=10, c_backend='louvain', chkpt_save_path=os.getcwd(), random_state=0,
     cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5, device='cuda'
 ):
-    """[summary]
-
-    Args:
-        ad ([type]): [description]
-        n_episodes (int, optional): [description]. Defaults to 10.
-        n_metric_epochs (int, optional): [description]. Defaults to 10.
-        use_rep (str, optional): [description]. Defaults to 'X_pca'.
-        code_size (int, optional): [description]. Defaults to 10.
-        c_backend (str, optional): [description]. Defaults to 'louvain'.
-        chkpt_save_path ([type], optional): [description]. Defaults to os.getcwd().
-        random_state (int, optional): [description]. Defaults to 0.
-        cluster_kwargs (dict, optional): [description]. Defaults to {}.
-        neighbor_kwargs (dict, optional): [description]. Defaults to {}.
-        trainer_kwargs (dict, optional): [description]. Defaults to {}.
-        viz_method (str, optional): [description]. Defaults to 'umap'.
-        viz_kwargs (dict, optional): [description]. Defaults to {}.
-        n_neighbors_ti (int, optional): [description]. Defaults to 30.
-        threshold (float, optional): [description]. Defaults to 0.5.
-    """
     # Seed setting
     seed_everything(seed=random_state)
 
@@ -112,3 +93,26 @@ def run_metti(ad,
     print('\nComputing Pseudotime...')
     trajectory_graph = nx.to_numpy_array(ad.uns['metric_trajectory'])
     pseudotime = compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, trajectory_graph, comm_key='metric_clusters', data_key='metric_embedding')
+
+
+def run_paga(ad,
+    start_cell, n_neighbors=15, use_rep='X_pca', c_backend='louvain', random_state=0,
+    neighbor_kwargs={}, cluster_kwargs={}, paga_kwargs={}
+):
+    # Nearest neighbors
+    sc.pp.neighbors(ad, n_neighbors=n_neighbors, random_state=random_state)
+
+    # Cluster generation
+    determine_cell_clusters(
+        ad, obsm_key=use_rep, backend=c_backend, cluster_key='paga_clusters',
+        nn_kwargs=neighbor_kwargs, **cluster_kwargs
+    )
+
+    # PAGA
+    sc.tl.paga(ad, groups='paga_clusters', **paga_kwargs)
+
+    # Pseudotime computation using PAGA
+    obs_ = ad.obs_names
+    start_cell_id = np.where(obs_ == start_cell)[0][0]
+    ad.uns['iroot'] = start_cell_id
+    sc.tl.dpt(ad)

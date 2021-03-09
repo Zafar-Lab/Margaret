@@ -10,15 +10,14 @@ from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *
 
 
-def evaluate_metric_topology(dataset_file_path, results_dir=os.getcwd()):
+def evaluate_metric_topology(
+    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0], c_backends=['louvain', 'leiden']):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
         reader = csv.DictReader(fp)
         datasets = {row['name']: row['path'] for row in reader}
 
-    resolutions = [0.4, 0.6, 0.8, 1.0]
-    c_backends = ['louvain', 'leiden']
     results = {}
 
     for backend in c_backends:
@@ -58,7 +57,7 @@ def evaluate_metric_topology(dataset_file_path, results_dir=os.getcwd()):
 
                 # Run method
                 run_metti(
-                    preprocessed_data, n_episodes=1, n_metric_epochs=1, chkpt_save_path=chkpt_save_path, random_state=0,
+                    preprocessed_data, n_episodes=10, n_metric_epochs=10, chkpt_save_path=chkpt_save_path, random_state=0,
                     cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
                     trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend
                 )

@@ -14,7 +14,7 @@ from utils.util import compute_runtime, determine_cell_clusters
 
 @compute_runtime
 def train_metric_learner(
-    adata, n_episodes=10, n_metric_epochs=10, code_size=10, obsm_data_key='X_pca', device='gpu',
+    adata, n_episodes=10, n_metric_epochs=10, code_size=10, obsm_data_key='X_pca', device='cuda',
     random_state=0, save_path=os.getcwd(), backend='kmeans', nn_kwargs={}, trainer_kwargs={}, cluster_kwargs={}
 ):
     X = adata.obsm[obsm_data_key]

@@ -36,7 +36,7 @@ def seed_everything(seed=0):
 
 def run_metti(ad,
     n_episodes=10, n_metric_epochs=10, use_rep='X_pca', code_size=10, c_backend='louvain', chkpt_save_path=os.getcwd(), random_state=0,
-    cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5
+    cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5, device='cuda'
 ):
     """[summary]
 
@@ -69,7 +69,8 @@ def run_metti(ad,
         # Filter out user warnings from PyTorch about saving scheduler state
         warnings.simplefilter("ignore")
         train_metric_learner(ad, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, obsm_data_key=use_rep, code_size=code_size,
-            backend=c_backend, save_path=chkpt_save_path, cluster_kwargs=cluster_kwargs, nn_kwargs=neighbor_kwargs, trainer_kwargs=trainer_kwargs
+            backend=c_backend, save_path=chkpt_save_path, cluster_kwargs=cluster_kwargs, nn_kwargs=neighbor_kwargs, trainer_kwargs=trainer_kwargs,
+            device=device
         )
 
     # 2d embedding visualization generation

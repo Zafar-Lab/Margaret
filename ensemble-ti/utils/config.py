@@ -19,7 +19,7 @@ from models import *
 from utils.criterion import *
 
 
-_SUPPORTED_DEVICES = ['cpu', 'gpu']
+_SUPPORTED_DEVICES = ['cpu', 'cuda']
 
 
 def configure_device(device):

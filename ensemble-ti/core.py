@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import os
 import random
+import scanpy as sc
 import torch
 import warnings
 

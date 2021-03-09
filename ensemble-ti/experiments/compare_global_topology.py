@@ -11,7 +11,7 @@ from utils.plot import *
 
 
 def evaluate_metric_topology(
-    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0], c_backends=['louvain', 'leiden']):
+    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0], c_backends=['louvain', 'leiden'], threshold=0.5):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
@@ -59,7 +59,7 @@ def evaluate_metric_topology(
                 run_metti(
                     preprocessed_data, n_episodes=10, n_metric_epochs=10, chkpt_save_path=chkpt_save_path, random_state=0,
                     cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
-                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend
+                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold
                 )
 
                 # Plot embeddings

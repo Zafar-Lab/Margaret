@@ -89,6 +89,9 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
 
 
 def _connect_graph(adj, data, start_cell_id):
+    # TODO: Update the heuristic here which involves using the
+    # cell with the max distance to establish a connection with
+    # the disconnected parts of the clusters.
     index = adj.index
     dists = dijkstra(adj, indices=start_cell_id)
     unreachable_nodes = index[dists == np.inf]

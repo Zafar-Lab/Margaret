@@ -2,14 +2,15 @@ import csv
 import os
 import scanpy as sc
 
-from core import run_metti
+from core import run_metti, run_paga
+from IPython.display import clear_output
 from metrics.ipsen import IpsenMikhailov
 from models.ti.graph import compute_gt_milestone_network
 from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *
 
 
-def evaluate_clustering(dataset_file_path, results_dir=os.getcwd()):
+def evaluate_metric_topology(dataset_file_path, results_dir=os.getcwd()):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
@@ -102,4 +103,65 @@ def evaluate_clustering(dataset_file_path, results_dir=os.getcwd()):
                 net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
                 net2 = preprocessed_data.uns['metric_undirected_graph']
                 r.loc[name, resolution] = im(net1, net2)
-        r.to_pickle(os.path.join(results_dir, f'{backend}_results.pkl'))
+        r.to_pickle(os.path.join(results_dir, f'metric_{backend}_im_results.pkl'))
+
+
+def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
+    # Read the dataset file
+    datasets = {}
+    with open(dataset_file_path, 'r') as fp:
+        reader = csv.DictReader(fp)
+        datasets = {row['name']: row['path'] for row in reader}
+
+    resolutions = [0.4, 0.6, 0.8, 1.0]
+    c_backends = ['louvain', 'leiden']
+    results = {}
+
+    for backend in c_backends:
+        r = pd.DataFrame(index=datasets.keys(), columns=resolutions)
+        for name, path in datasets.items():
+            # Setup directory per dataset for the experiment
+            dataset_path = os.path.join(results_dir, name)
+            chkpt_save_path = os.path.join(dataset_path, 'checkpoint')
+            
+            os.makedirs(dataset_path, exist_ok=True)
+
+            print(f'Evaluating dataset: {name} at path: {path}...')
+
+            for resolution in resolutions:
+                print(f'\nRunning {backend} for resolution: {resolution}')
+                
+                ad = sc.read(path)
+
+                # Preprocessing using Seurat like parameters
+                min_expr_level = 0
+                min_cells = 3
+                use_hvg = False
+                n_top_genes = 720
+                preprocessed_data = preprocess_recipe(
+                    ad,
+                    min_expr_level=min_expr_level, 
+                    min_cells=min_cells,
+                    use_hvg=use_hvg,
+                    n_top_genes=n_top_genes,
+                    scale=True
+                )
+
+                # Run PAGA
+                run_paga(
+                    preprocessed_data, preprocessed_data.uns['start_id'], c_backend=backend, n_neighbors=30,
+                    neighbor_kwargs={'random_state': 0, 'n_neighbors': 50}, cluster_kwargs={'random_state': 0, 'resolution': resolution},
+                )
+
+                # Plot the PAGA graph
+                plot_path = os.path.join(dataset_path, backend, str(resolution))
+                os.makedirs(plot_path, exist_ok=True)
+                os.chdir(plot_path)
+                sc.pl.paga(preprocessed_data, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
+
+                # Compute IM distance
+                im = IpsenMikhailov()
+                net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
+                net2 = nx.from_scipy_sparse_matrix(preprocessed_data.uns['paga']['connectivities'])
+                r.loc[name, resolution] = im(net1, net2)
+        r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_im_results.pkl'))

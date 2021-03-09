@@ -101,13 +101,13 @@ def run_paga(ad,
     neighbor_kwargs={}, cluster_kwargs={}, paga_kwargs={}
 ):
     # Nearest neighbors
-    sc.pp.neighbors(ad, n_neighbors=n_neighbors, random_state=random_state)
+    sc.pp.neighbors(ad, **neighbor_kwargs)
 
     # Cluster generation
-    determine_cell_clusters(
-        ad, obsm_key=use_rep, backend=c_backend, cluster_key='paga_clusters',
-        nn_kwargs=neighbor_kwargs, **cluster_kwargs
-    )
+    if c_backend == 'louvain':
+        sc.tl.louvain(ad, key_added='paga_clusters', **cluster_kwargs)
+    else:
+        sc.tl.leiden(ad, key_added='paga_clusters', **cluster_kwargs)
 
     # PAGA
     sc.tl.paga(ad, groups='paga_clusters', **paga_kwargs)

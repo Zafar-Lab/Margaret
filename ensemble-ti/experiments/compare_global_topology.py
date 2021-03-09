@@ -103,6 +103,7 @@ def evaluate_metric_topology(dataset_file_path, results_dir=os.getcwd()):
                 net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
                 net2 = preprocessed_data.uns['metric_undirected_graph']
                 r.loc[name, resolution] = im(net1, net2)
+                clear_output(wait=True)
         r.to_pickle(os.path.join(results_dir, f'metric_{backend}_im_results.pkl'))
 
 
@@ -130,38 +131,26 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
 
             for resolution in resolutions:
                 print(f'\nRunning {backend} for resolution: {resolution}')
-                
                 ad = sc.read(path)
 
-                # Preprocessing using Seurat like parameters
-                min_expr_level = 0
-                min_cells = 3
-                use_hvg = False
-                n_top_genes = 720
-                preprocessed_data = preprocess_recipe(
-                    ad,
-                    min_expr_level=min_expr_level, 
-                    min_cells=min_cells,
-                    use_hvg=use_hvg,
-                    n_top_genes=n_top_genes,
-                    scale=True
-                )
-
                 # Run PAGA
+                start_cell_ids = ad.uns['start_id']
+                start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
                 run_paga(
-                    preprocessed_data, preprocessed_data.uns['start_id'], c_backend=backend, n_neighbors=30,
-                    neighbor_kwargs={'random_state': 0, 'n_neighbors': 50}, cluster_kwargs={'random_state': 0, 'resolution': resolution},
+                    ad, start_cell_ids[-1], c_backend=backend, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
+                    cluster_kwargs={'random_state': 0, 'resolution': resolution},
                 )
 
                 # Plot the PAGA graph
                 plot_path = os.path.join(dataset_path, backend, str(resolution))
                 os.makedirs(plot_path, exist_ok=True)
                 os.chdir(plot_path)
-                sc.pl.paga(preprocessed_data, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
+                sc.pl.paga(ad, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
 
                 # Compute IM distance
                 im = IpsenMikhailov()
-                net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
-                net2 = nx.from_scipy_sparse_matrix(preprocessed_data.uns['paga']['connectivities'])
+                net1 = compute_gt_milestone_network(ad, mode='undirected')
+                net2 = nx.from_scipy_sparse_matrix(ad.uns['paga']['connectivities'])
                 r.loc[name, resolution] = im(net1, net2)
+                clear_output(wait=True)
         r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_im_results.pkl'))

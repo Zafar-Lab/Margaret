@@ -89,15 +89,19 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
 
 
 def _connect_graph(adj, data, start_cell_id):
+    # TODO: Update the heuristic here which involves using the
+    # cell with the max distance to establish a connection with
+    # the disconnected parts of the clusters.
+
     index = adj.index
-    dists = dijkstra(adj, indices=start_cell_id)
+    dists = pd.Series(dijkstra(adj, indices=start_cell_id), index=index)
     unreachable_nodes = index[dists == np.inf]
     if len(unreachable_nodes) == 0:
         return adj
 
     # Connect unreachable nodes
     while len(unreachable_nodes) > 0:
-        farthest_reachable_id = index[np.argmax(dists[dists != np.inf])]
+        farthest_reachable_id = dists.loc[index[dists != np.inf]].idxmax()
 
         # Compute distances to unreachable nodes
         unreachable_dists = pairwise_distances(
@@ -112,7 +116,7 @@ def _connect_graph(adj, data, start_cell_id):
         adj.loc[farthest_reachable_id, unreachable_dists.idxmin()] = unreachable_dists.min()
 
         # Recompute distances to early cell
-        dists = dijkstra(adj, indices=start_cell_id)
+        dists = pd.Series(dijkstra(adj, indices=start_cell_id), index=index)
 
         # Idenfity unreachable nodes
         unreachable_nodes = index[dists == np.inf]

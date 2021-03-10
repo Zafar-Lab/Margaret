@@ -14,11 +14,15 @@ from models.ti.graph import compute_connectivity_graph, compute_trajectory_graph
 from utils.util import compute_runtime
 
 
-def plot_embeddings(X, figsize=None, **kwargs):
+def plot_embeddings(X, figsize=None, save_path=None, save_kwargs={}, title=None, **kwargs):
     assert X.shape[-1] == 2
     plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
     plt.scatter(X[:, 0], X[:, 1], **kwargs)
     plt.gca().set_axis_off()
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
     plt.show()
 
 
@@ -93,27 +97,39 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_
     plt.show()
 
 
-def plot_clusters(adata, cluster_key='communities', embedding_key='X_embedding', cmap=None, figsize=(12, 8)):
+def plot_clusters(
+    adata, cluster_key='communities', embedding_key='X_embedding',
+    cmap=None, figsize=(12, 8), title=None, save_path=None, save_kwargs={}
+):
     communities = adata.obs[cluster_key]
     embeddings = adata.obsm[embedding_key]
     # Only 2d embeddings can be visualized :)
     assert embeddings.shape[-1] == 2
 
     plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
     axes = plt.subplot(111)
     scatter = axes.scatter(embeddings[:, 0], embeddings[:, 1], c=communities, s=8, cmap=cmap)
     legend1 = axes.legend(*scatter.legend_elements(num=len(np.unique(communities))), loc="center left", title="Cluster Id", bbox_to_anchor=(1, 0.5))
     axes.add_artist(legend1)
     axes.set_axis_off()
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
     plt.show()
 
 
-def plot_pseudotime(adata, embedding_key='X_embedded', pseudotime_key='X_pseudotime',cmap=None, figsize=None, marker_size=5, **kwargs):
+def plot_pseudotime(
+    adata, embedding_key='X_embedded', pseudotime_key='X_pseudotime',cmap=None,
+    figsize=None, marker_size=5, title=None, save_path=None, save_kwargs={}, **kwargs
+):
     pseudotime = adata.obs[pseudotime_key]
     X_embedded = adata.obsm[embedding_key]
 
     # Plot
     plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
     plt.scatter(
         X_embedded[:, 0], X_embedded[:, 1], s=marker_size,
         c=pseudotime, cmap=cmap, **kwargs
@@ -126,25 +142,41 @@ def plot_pseudotime(adata, embedding_key='X_embedded', pseudotime_key='X_pseudot
     normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
     cax, _ = matplotlib.colorbar.make_axes(plt.gca())
     matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
     plt.show()
 
 
-def plot_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids, cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black'):
+def plot_trajectory_graph(
+    embeddings, communities, cluster_connectivities, start_cell_ids, cmap='YlGn', figsize=(16, 12),
+    node_size=400, font_color='black', title=None, save_path=None, save_kwargs={}
+):
     g, node_positions = compute_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids)
     # Draw the graph
     plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
     plt.axis('off')
     edge_weights = [0.2 + w for _, _, w in g.edges.data("weight")]
     nx.draw_networkx(g, pos=node_positions, cmap=cmap, node_color=np.unique(communities), font_color=font_color, node_size=node_size, width=edge_weights)
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
 
-def plot_connectivity_graph(embeddings, communities, cluster_connectivities, mode='undirected', cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black'):
+def plot_connectivity_graph(
+    embeddings, communities, cluster_connectivities, mode='undirected', cmap='YlGn', figsize=(16, 12),
+    node_size=400, font_color='black', title=None, save_path=None, save_kwargs={}
+):
     g, node_positions = compute_connectivity_graph(embeddings, communities, cluster_connectivities, mode=mode)
     # Draw the graph
     plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
     plt.axis('off')
     edge_weights = [0.2 + w for _, _, w in g.edges.data("weight")]
     nx.draw_networkx(g, pos=node_positions, cmap=cmap, node_color=np.unique(communities), font_color=font_color, node_size=node_size, width=edge_weights)
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
 
 def plot_gt_milestone_network(ad, uns_mn_key='milestone_network', start_node_color='red', node_color='yellow', figsize=(12, 12), node_size=800, font_size=9):

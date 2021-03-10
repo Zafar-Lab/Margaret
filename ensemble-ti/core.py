@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import os
 import random
+import scanpy as sc
 import torch
 import warnings
 
@@ -12,7 +13,7 @@ from models.ti.graph import compute_gt_milestone_network, compute_connectivity_g
 from models.ti.pseudotime import compute_pseudotime
 from train_metric import train_metric_learner
 from utils.plot import generate_plot_embeddings
-from utils.util import get_start_cell_cluster_id
+from utils.util import get_start_cell_cluster_id, determine_cell_clusters
 
 
 def seed_everything(seed=0):
@@ -34,9 +35,9 @@ def seed_everything(seed=0):
     return seed
 
 
-def run_metti(ad, 
+def run_metti(ad,
     n_episodes=10, n_metric_epochs=10, use_rep='X_pca', code_size=10, c_backend='louvain', chkpt_save_path=os.getcwd(), random_state=0,
-    cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5
+    cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5, device='cuda'
 ):
     # Seed setting
     seed_everything(seed=random_state)
@@ -50,7 +51,8 @@ def run_metti(ad,
         # Filter out user warnings from PyTorch about saving scheduler state
         warnings.simplefilter("ignore")
         train_metric_learner(ad, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, obsm_data_key=use_rep, code_size=code_size,
-            backend=c_backend, save_path=chkpt_save_path, cluster_kwargs=cluster_kwargs, nn_kwargs=neighbor_kwargs, trainer_kwargs=trainer_kwargs
+            backend=c_backend, save_path=chkpt_save_path, cluster_kwargs=cluster_kwargs, nn_kwargs=neighbor_kwargs, trainer_kwargs=trainer_kwargs,
+            device=device
         )
 
     # 2d embedding visualization generation
@@ -78,6 +80,7 @@ def run_metti(ad,
     ad.uns['metric_undirected_scores'] = un_scores
 
     start_cell_ids = ad.uns['start_id']
+    start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
     start_cluster_ids = get_start_cell_cluster_id(ad, start_cell_ids, communities)
     g, node_positions = compute_trajectory_graph(ad.obsm['metric_viz_embedding'], communities, connectivity, start_cluster_ids)
     ad.uns['metric_trajectory'] = g
@@ -91,3 +94,26 @@ def run_metti(ad,
     print('\nComputing Pseudotime...')
     trajectory_graph = nx.to_numpy_array(ad.uns['metric_trajectory'])
     pseudotime = compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, trajectory_graph, comm_key='metric_clusters', data_key='metric_embedding')
+
+
+def run_paga(ad,
+    start_cell, n_neighbors=15, use_rep='X_pca', c_backend='louvain', random_state=0,
+    neighbor_kwargs={}, cluster_kwargs={}, paga_kwargs={}
+):
+    # Nearest neighbors
+    sc.pp.neighbors(ad, **neighbor_kwargs)
+
+    # Cluster generation
+    if c_backend == 'louvain':
+        sc.tl.louvain(ad, key_added='paga_clusters', **cluster_kwargs)
+    else:
+        sc.tl.leiden(ad, key_added='paga_clusters', **cluster_kwargs)
+
+    # PAGA
+    sc.tl.paga(ad, groups='paga_clusters', **paga_kwargs)
+
+    # Pseudotime computation using PAGA
+    obs_ = ad.obs_names
+    start_cell_id = np.where(obs_ == start_cell)[0][0]
+    ad.uns['iroot'] = start_cell_id
+    sc.tl.dpt(ad)

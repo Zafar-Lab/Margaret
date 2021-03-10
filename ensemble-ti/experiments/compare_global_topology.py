@@ -13,7 +13,7 @@ from utils.plot import *
 
 def evaluate_metric_topology(
     dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0],
-    c_backends=['louvain', 'leiden'], threshold=0.5, dry_run=False
+    c_backends=['louvain', 'leiden'], threshold=0.5, dry_run=False, device='cuda'
 ):
     # Read the dataset file
     datasets = {}
@@ -69,7 +69,7 @@ def evaluate_metric_topology(
                 run_metti(
                     preprocessed_data, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, chkpt_save_path=chkpt_save_path, random_state=0,
                     cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
-                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold
+                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold, device=device
                 )
 
                 # Plot embeddings
@@ -117,10 +117,10 @@ def evaluate_metric_topology(
                 # Compute pseudotime
                 gt_pseudotime = pd.Series(preprocessed_data.uns['timecourse'], index=preprocessed_data.obs_names)
                 res = compute_ranking_correlation(gt_pseudotime, preprocessed_data.obs['metric_pseudotime'])
-                r.loc[name, f'KT@{resolution}'] = res['kendall']
-                r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall']
-                r.loc[name, f'SR@{resolution}'] = res['spearman']
-        r.to_pickle(os.path.join(results_dir, f'metric_{backend}_im_results.pkl'))
+                r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
+                r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
+                r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
+        r.to_pickle(os.path.join(results_dir, f'metric_{backend}_results.pkl'))
 
 
 def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
@@ -169,4 +169,11 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
                 net2 = nx.from_scipy_sparse_matrix(ad.uns['paga']['connectivities'])
                 r.loc[name, resolution] = im(net1, net2)
                 clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_im_results.pkl'))
+
+                # Compute pseudotime
+                gt_pseudotime = pd.Series(ad.uns['timecourse'], index=ad.obs_names)
+                res = compute_ranking_correlation(gt_pseudotime, ad.obs['dpt_pseudotime'])
+                r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
+                r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
+                r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
+        r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_results.pkl'))

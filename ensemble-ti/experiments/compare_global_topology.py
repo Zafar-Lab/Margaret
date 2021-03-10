@@ -5,13 +5,16 @@ import scanpy as sc
 from core import run_metti, run_paga
 from IPython.display import clear_output
 from metrics.ipsen import IpsenMikhailov
+from metrics.ordering import compute_ranking_correlation
 from models.ti.graph import compute_gt_milestone_network
 from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *
 
 
 def evaluate_metric_topology(
-    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0], c_backends=['louvain', 'leiden'], threshold=0.5):
+    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0],
+    c_backends=['louvain', 'leiden'], threshold=0.5, dry_run=False
+):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
@@ -21,7 +24,7 @@ def evaluate_metric_topology(
     results = {}
 
     for backend in c_backends:
-        r = pd.DataFrame(index=datasets.keys(), columns=resolutions)
+        r = pd.DataFrame(index=datasets.keys())
         for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
@@ -32,9 +35,14 @@ def evaluate_metric_topology(
             print(f'Evaluating dataset: {name} at path: {path}...')
 
             for resolution in resolutions:
-                print(f'\nRunning {backend} for resolution: {resolution}')
+                print(f'\nRunning {backend} for dataset: {name} at resolution: {resolution}')
                 
                 ad = sc.read(path)
+                try:
+                    # In case the anndata object has scipy.sparse graphs
+                    ad.X = ad.X.todense()
+                except:
+                    pass
 
                 # Preprocessing using Seurat like parameters
                 min_expr_level = 0
@@ -56,8 +64,10 @@ def evaluate_metric_topology(
                 preprocessed_data.obsm['X_pca'] = X_pca
 
                 # Run method
+                n_episodes = 1 if dry_run else 10
+                n_metric_epochs = 1 if dry_run else 10
                 run_metti(
-                    preprocessed_data, n_episodes=10, n_metric_epochs=10, chkpt_save_path=chkpt_save_path, random_state=0,
+                    preprocessed_data, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, chkpt_save_path=chkpt_save_path, random_state=0,
                     cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
                     trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold
                 )
@@ -101,8 +111,15 @@ def evaluate_metric_topology(
                 im = IpsenMikhailov()
                 net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
                 net2 = preprocessed_data.uns['metric_undirected_graph']
-                r.loc[name, resolution] = im(net1, net2)
+                r.loc[name, f'IM@{resolution}'] = im(net1, net2)
                 clear_output(wait=True)
+
+                # Compute pseudotime
+                gt_pseudotime = pd.Series(preprocessed_data.uns['timecourse'], index=preprocessed_data.obs_names)
+                res = compute_ranking_correlation(gt_pseudotime, preprocessed_data.obs['metric_pseudotime'])
+                r.loc[name, f'KT@{resolution}'] = res['kendall']
+                r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall']
+                r.loc[name, f'SR@{resolution}'] = res['spearman']
         r.to_pickle(os.path.join(results_dir, f'metric_{backend}_im_results.pkl'))
 
 

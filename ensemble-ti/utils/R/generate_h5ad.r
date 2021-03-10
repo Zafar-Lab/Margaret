@@ -2,7 +2,6 @@ library(reticulate)
 
 py_anndata = import("anndata", convert=FALSE)
 
-
 args = commandArgs(trailingOnly=TRUE)
 if(length(args) == 0 || length(args) == 1) {
     stop("Read and write paths must be provided")
@@ -18,6 +17,9 @@ counts = dataset$counts
 cell_ids = dataset$cell_ids
 feature_ids = dataset$prior_information$features_id
 
+# Timecourse (pseudotime) information
+pt = dataset$prior_information$timecourse_continuous
+
 # Unstructured info (like prior knowledge of start cells etc.)
 uns_info = dict(
     milestone_percentages = dataset$milestone_percentages,
@@ -26,7 +28,7 @@ uns_info = dict(
     start_milestones = dataset$prior_information$start_milestones,
     end_milestones = dataset$prior_information$end_milestones,
     end_id = dataset$prior_information$end_id,
-    timecourse = dataset$prior_information$timecourse_continuous
+    timecourse = data.frame(pt, row.names=names(pt))
 )
 
 # Construct the AnnData object

@@ -115,7 +115,7 @@ def evaluate_metric_topology(
                 clear_output(wait=True)
 
                 # Compute pseudotime
-                gt_pseudotime = pd.Series(preprocessed_data.uns['timecourse'], index=preprocessed_data.obs_names)
+                gt_pseudotime = preprocessed_data.uns['timecourse'].reindex(preprocessed_data.obs_names)
                 res = compute_ranking_correlation(gt_pseudotime, preprocessed_data.obs['metric_pseudotime'])
                 r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
                 r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
@@ -171,7 +171,7 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
                 clear_output(wait=True)
 
                 # Compute pseudotime
-                gt_pseudotime = pd.Series(ad.uns['timecourse'], index=ad.obs_names)
+                gt_pseudotime = ad.uns['timecourse'].reindex(ad.obs_names)
                 res = compute_ranking_correlation(gt_pseudotime, ad.obs['dpt_pseudotime'])
                 r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
                 r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]

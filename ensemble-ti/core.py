@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import os
+import palantir
 import random
 import scanpy as sc
 import torch
@@ -117,3 +118,14 @@ def run_paga(ad,
     start_cell_id = np.where(obs_ == start_cell)[0][0]
     ad.uns['iroot'] = start_cell_id
     sc.tl.dpt(ad)
+
+
+def run_palantir(ad, early_cell, knn=30):
+    # PCA and diffusion Map computation with scaled eigenvectors
+    pca_projections, _ = palantir.utils.run_pca(ad, use_hvg=False)
+    dm_res = palantir.utils.run_diffusion_maps(pca_projections, n_components=10)
+    ms_data = palantir.utils.determine_multiscale_space(dm_res)
+
+    # Pseudotime and DP computation
+    presults = palantir.core.run_palantir(ms_data, early_cell, knn=knn)
+    return presults

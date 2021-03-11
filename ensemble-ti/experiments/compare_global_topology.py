@@ -149,6 +149,9 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
                 print(f'\nRunning {backend} for resolution: {resolution}')
                 ad = sc.read(path)
 
+                # Preprocess as in paul15
+                sc.pp.recipe_zheng17(ad)
+
                 # Run PAGA
                 start_cell_ids = ad.uns['start_id']
                 start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)

@@ -204,6 +204,11 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
 
             # Read and Preprocess
             ad = sc.read(path)
+            try:
+                # In case the anndata object has scipy.sparse graphs
+                ad.X = ad.X.todense()
+            except:
+                pass
             sc.pp.normalize_per_cell(ad)
             log_transform(ad, pseudo_count=0.1)
             sc.pp.highly_variable_genes(ad, n_top_genes=1500, flavor='cell_ranger')

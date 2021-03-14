@@ -7,7 +7,7 @@ from IPython.display import clear_output
 from metrics.ipsen import IpsenMikhailov
 from metrics.ordering import compute_ranking_correlation
 from models.ti.graph import compute_gt_milestone_network
-from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
+from utils.util import log_transform, preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *
 
 

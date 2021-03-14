@@ -112,7 +112,6 @@ def evaluate_metric_topology(
                 net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
                 net2 = preprocessed_data.uns['metric_undirected_graph']
                 r.loc[name, f'IM@{resolution}'] = im(net1, net2)
-                clear_output(wait=True)
 
                 # Compute pseudotime
                 gt_pseudotime = preprocessed_data.uns['timecourse'].reindex(preprocessed_data.obs_names)
@@ -120,6 +119,7 @@ def evaluate_metric_topology(
                 r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
                 r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
                 r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
+                clear_output(wait=True)
         r.to_pickle(os.path.join(results_dir, f'metric_{backend}_results.pkl'))
 
 
@@ -173,7 +173,6 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd(), resolutio
                 net1 = compute_gt_milestone_network(ad, mode='undirected')
                 net2 = nx.from_scipy_sparse_matrix(ad.uns['paga']['connectivities'])
                 r.loc[name, resolution] = im(net1, net2)
-                clear_output(wait=True)
 
                 # Compute pseudotime
                 gt_pseudotime = ad.uns['timecourse'].reindex(ad.obs_names)
@@ -181,10 +180,12 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd(), resolutio
                 r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
                 r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
                 r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
+                clear_output(wait=True)
         r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_results.pkl'))
 
 
 def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
+    # TODO: Add code to save embedding plots from Palantir
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
@@ -219,7 +220,8 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
             # Compute pseudotime
             gt_pseudotime = ad.uns['timecourse'].reindex(ad.obs_names)
             res = compute_ranking_correlation(gt_pseudotime, presults.pseudotime)
-            r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
-            r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
-            r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
+            r.loc[name, f'KT'] = res['kendall'][0]
+            r.loc[name, f'WKT'] = res['weighted_kendall'][0]
+            r.loc[name, f'SR'] = res['spearman'][0]
+            clear_output(wait=True)
         r.to_pickle(os.path.join(results_dir, f'palantir_pseudotime_results.pkl'))

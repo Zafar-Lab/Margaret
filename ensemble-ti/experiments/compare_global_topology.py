@@ -146,9 +146,25 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd(), resolutio
             for resolution in resolutions:
                 print(f'\nRunning {backend} for dataset: {name} at resolution: {resolution}')
                 ad = sc.read(path)
+                try:
+                    # In case the anndata object has scipy.sparse graphs
+                    ad.X = ad.X.todense()
+                except:
+                    pass
 
-                # Preprocess as in paul15
-                # sc.pp.recipe_zheng17(ad)
+                # Preprocessing using Seurat like parameters
+                min_expr_level = 0
+                min_cells = 3
+                use_hvg = False
+                n_top_genes = 720
+                preprocessed_data = preprocess_recipe(
+                    ad,
+                    min_expr_level=min_expr_level, 
+                    min_cells=min_cells,
+                    use_hvg=use_hvg,
+                    n_top_genes=n_top_genes,
+                    scale=True
+                )
 
                 # Run PAGA
                 start_cell_ids = ad.uns['start_id']
@@ -158,15 +174,15 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd(), resolutio
                         ad, start_cell_ids[-1], c_backend=backend, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
                         cluster_kwargs={'random_state': 0, 'resolution': resolution},
                     )
+                    # Plot the PAGA graph
+                    # Added here as sometimes PAGA plot throws error when applied on preprocessed data
+                    plot_path = os.path.join(dataset_path, backend, str(resolution))
+                    os.makedirs(plot_path, exist_ok=True)
+                    os.chdir(plot_path)
+                    sc.pl.paga(ad, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
                 except:
                     print(f'PAGA run failed for dataset: {name}@{resolution}. Skipping writing results for this conf')
                     continue
-
-                # Plot the PAGA graph
-                plot_path = os.path.join(dataset_path, backend, str(resolution))
-                os.makedirs(plot_path, exist_ok=True)
-                os.chdir(plot_path)
-                sc.pl.paga(ad, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
 
                 # Compute IM distance
                 im = IpsenMikhailov()

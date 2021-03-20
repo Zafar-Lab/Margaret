@@ -2,16 +2,19 @@ import csv
 import os
 import scanpy as sc
 
-from core import run_metti, run_paga
+from core import run_metti, run_paga, run_palantir
 from IPython.display import clear_output
 from metrics.ipsen import IpsenMikhailov
+from metrics.ordering import compute_ranking_correlation
 from models.ti.graph import compute_gt_milestone_network
-from utils.util import preprocess_recipe, run_pca, get_start_cell_cluster_id
+from utils.util import log_transform, preprocess_recipe, run_pca, get_start_cell_cluster_id
 from utils.plot import *
 
 
 def evaluate_metric_topology(
-    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0], c_backends=['louvain', 'leiden'], threshold=0.5):
+    dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0],
+    c_backends=['louvain', 'leiden'], threshold=0.5, dry_run=False, device='cuda'
+):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
@@ -21,7 +24,7 @@ def evaluate_metric_topology(
     results = {}
 
     for backend in c_backends:
-        r = pd.DataFrame(index=datasets.keys(), columns=resolutions)
+        r = pd.DataFrame(index=datasets.keys())
         for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
@@ -32,9 +35,14 @@ def evaluate_metric_topology(
             print(f'Evaluating dataset: {name} at path: {path}...')
 
             for resolution in resolutions:
-                print(f'\nRunning {backend} for resolution: {resolution}')
+                print(f'\nRunning {backend} for dataset: {name} at resolution: {resolution}')
                 
                 ad = sc.read(path)
+                try:
+                    # In case the anndata object has scipy.sparse graphs
+                    ad.X = ad.X.todense()
+                except:
+                    pass
 
                 # Preprocessing using Seurat like parameters
                 min_expr_level = 0
@@ -56,10 +64,12 @@ def evaluate_metric_topology(
                 preprocessed_data.obsm['X_pca'] = X_pca
 
                 # Run method
+                n_episodes = 1 if dry_run else 10
+                n_metric_epochs = 1 if dry_run else 10
                 run_metti(
-                    preprocessed_data, n_episodes=10, n_metric_epochs=10, chkpt_save_path=chkpt_save_path, random_state=0,
+                    preprocessed_data, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, chkpt_save_path=chkpt_save_path, random_state=0,
                     cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
-                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold
+                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold, device=device
                 )
 
                 # Plot embeddings
@@ -101,24 +111,29 @@ def evaluate_metric_topology(
                 im = IpsenMikhailov()
                 net1 = compute_gt_milestone_network(preprocessed_data, mode='undirected')
                 net2 = preprocessed_data.uns['metric_undirected_graph']
-                r.loc[name, resolution] = im(net1, net2)
+                r.loc[name, f'IM@{resolution}'] = im(net1, net2)
+
+                # Compute pseudotime
+                gt_pseudotime = preprocessed_data.uns['timecourse'].reindex(preprocessed_data.obs_names)
+                res = compute_ranking_correlation(gt_pseudotime, preprocessed_data.obs['metric_pseudotime'])
+                r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
+                r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
+                r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
                 clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f'metric_{backend}_im_results.pkl'))
+        r.to_pickle(os.path.join(results_dir, f'metric_{backend}_results.pkl'))
 
 
-def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
+def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0], c_backends=['louvain', 'leiden']):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, 'r') as fp:
         reader = csv.DictReader(fp)
         datasets = {row['name']: row['path'] for row in reader}
 
-    resolutions = [0.4, 0.6, 0.8, 1.0]
-    c_backends = ['louvain', 'leiden']
     results = {}
 
     for backend in c_backends:
-        r = pd.DataFrame(index=datasets.keys(), columns=resolutions)
+        r = pd.DataFrame(index=datasets.keys())
         for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
@@ -129,27 +144,105 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd()):
             print(f'Evaluating dataset: {name} at path: {path}...')
 
             for resolution in resolutions:
-                print(f'\nRunning {backend} for resolution: {resolution}')
+                print(f'\nRunning {backend} for dataset: {name} at resolution: {resolution}')
                 ad = sc.read(path)
+                try:
+                    # In case the anndata object has scipy.sparse graphs
+                    ad.X = ad.X.todense()
+                except:
+                    pass
+
+                # Preprocessing using Seurat like parameters
+                min_expr_level = 0
+                min_cells = 3
+                use_hvg = False
+                n_top_genes = 720
+                preprocessed_data = preprocess_recipe(
+                    ad,
+                    min_expr_level=min_expr_level, 
+                    min_cells=min_cells,
+                    use_hvg=use_hvg,
+                    n_top_genes=n_top_genes,
+                    scale=True
+                )
 
                 # Run PAGA
                 start_cell_ids = ad.uns['start_id']
                 start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
-                run_paga(
-                    ad, start_cell_ids[-1], c_backend=backend, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
-                    cluster_kwargs={'random_state': 0, 'resolution': resolution},
-                )
-
-                # Plot the PAGA graph
-                plot_path = os.path.join(dataset_path, backend, str(resolution))
-                os.makedirs(plot_path, exist_ok=True)
-                os.chdir(plot_path)
-                sc.pl.paga(ad, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
+                try:
+                    run_paga(
+                        ad, start_cell_ids[-1], c_backend=backend, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
+                        cluster_kwargs={'random_state': 0, 'resolution': resolution},
+                    )
+                    # Plot the PAGA graph
+                    # Added here as sometimes PAGA plot throws error when applied on preprocessed data
+                    plot_path = os.path.join(dataset_path, backend, str(resolution))
+                    os.makedirs(plot_path, exist_ok=True)
+                    os.chdir(plot_path)
+                    sc.pl.paga(ad, save='_graph.png', title=f'PAGA_{backend}_{resolution}')
+                except:
+                    print(f'PAGA run failed for dataset: {name}@{resolution}. Skipping writing results for this conf')
+                    continue
 
                 # Compute IM distance
                 im = IpsenMikhailov()
                 net1 = compute_gt_milestone_network(ad, mode='undirected')
                 net2 = nx.from_scipy_sparse_matrix(ad.uns['paga']['connectivities'])
                 r.loc[name, resolution] = im(net1, net2)
+
+                # Compute pseudotime
+                gt_pseudotime = ad.uns['timecourse'].reindex(ad.obs_names)
+                res = compute_ranking_correlation(gt_pseudotime, ad.obs['dpt_pseudotime'])
+                r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
+                r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
+                r.loc[name, f'SR@{resolution}'] = res['spearman'][0]
                 clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_im_results.pkl'))
+        r.to_pickle(os.path.join(results_dir, f'PAGA_{backend}_results.pkl'))
+
+
+def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
+    # TODO: Add code to save embedding plots from Palantir
+    # Read the dataset file
+    datasets = {}
+    with open(dataset_file_path, 'r') as fp:
+        reader = csv.DictReader(fp)
+        datasets = {row['name']: row['path'] for row in reader}
+
+        r = pd.DataFrame(index=datasets.keys())
+        for name, path in datasets.items():
+            # Setup directory per dataset for the experiment
+            dataset_path = os.path.join(results_dir, name)
+            chkpt_save_path = os.path.join(dataset_path, 'checkpoint')
+            
+            os.makedirs(dataset_path, exist_ok=True)
+
+            print(f'Evaluating dataset: {name} at path: {path}...')
+
+            # Read and Preprocess
+            ad = sc.read(path)
+            try:
+                # In case the anndata object has scipy.sparse graphs
+                ad.X = ad.X.todense()
+            except:
+                pass
+            sc.pp.normalize_per_cell(ad)
+            log_transform(ad, pseudo_count=0.1)
+            sc.pp.highly_variable_genes(ad, n_top_genes=1500, flavor='cell_ranger')
+
+            # Run Palantir
+            start_cell_ids = ad.uns['start_id']
+            start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
+            try:
+                presults = run_palantir(ad, start_cell_ids[-1])
+            except:
+                print(f'Palantir run failed for dataset: {name}. Skipping writing results for this dataset')
+                continue
+
+            # Compute pseudotime
+            gt_pseudotime = ad.uns['timecourse'].reindex(ad.obs_names)
+            res = compute_ranking_correlation(gt_pseudotime, presults.pseudotime)
+            r.loc[name, f'KT'] = res['kendall'][0]
+            r.loc[name, f'WKT'] = res['weighted_kendall'][0]
+            r.loc[name, f'SR'] = res['spearman'][0]
+            clear_output(wait=True)
+        r.to_pickle(os.path.join(results_dir, f'palantir_pseudotime_results.pkl'))

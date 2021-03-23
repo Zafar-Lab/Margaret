@@ -51,3 +51,33 @@ def get_terminal_states(ad, start_cell_ids, use_rep='metric_embedding', cluster_
 
     ad.uns['metric_terminal_clusters'] = terminal_candidates
     return terminal_candidates
+
+
+def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', terminal_key='metric_terminal_clusters', graph_key='metric_trajectory'):
+    communities = ad.obs[cluster_key]
+    cluster_ids = np.unique(communities)
+    terminal_ids = ad.uns[terminal_key]
+    inter_cluster_ids = set(cluster_ids) - set(terminal_ids)
+    g = ad.uns[graph_key]
+    adj_g = nx.convert_matrix.to_numpy_array(g)
+
+    cluster_lineage_likelihoods = pd.DataFrame(columns=terminal_ids, index=inter_cluster_ids)
+    for t_id in terminal_ids:
+        for c_id in inter_cluster_ids:
+            paths = nx.all_simple_paths(g, c_id, t_id)
+            # Compute total likelihood along all possible paths
+            likelihood = 0
+            for path in paths:
+                # Compute the likelihood for this path
+                next_state = path[0]
+                _l = 1
+                for idx in range(1, len(path)):
+                    _l *= adj_g[next_state, path[idx]]
+                    next_state = path[idx]
+                likelihood += _l
+            cluster_lineage_likelihoods.loc[c_id, t_id] = likelihood
+
+    # Row-Normalize the lineage likelihoods
+    non_island_inds = cluster_lineage_likelihoods.sum(axis=1) > 0
+    cluster_lineage_likelihoods[non_island_inds] = cluster_lineage_likelihoods[non_island_inds].div(cluster_lineage_likelihoods[non_island_inds].sum(axis=1), axis=0)
+    return cluster_lineage_likelihoods

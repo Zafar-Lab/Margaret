@@ -121,24 +121,3 @@ def _connect_graph(adj, data, start_cell_id):
         # Idenfity unreachable nodes
         unreachable_nodes = index[dists == np.inf]
     return adj
-
-
-def prune_network_edges(communities, adj, connectivities):
-    n_communities = np.unique(communities).shape[0]
-    pruned_edges = 0
-
-    # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
-        cluster_idx = communities == idx
-        clusters.append(cluster_idx)
-
-    n_row, n_col = connectivities.shape
-    col_ids = np.arange(n_col)
-    for cluster_idx in range(n_row):
-        cluster_i = clusters[cluster_idx]
-        non_connected_clusters = col_ids[connectivities[cluster_idx] == 0]
-        for non_cluster_idx in non_connected_clusters:
-            pruned_edges += np.sum(adj[cluster_i, non_cluster_idx])
-            adj[cluster_i, non_cluster_idx] = np.zeros((adj[cluster_i, non_cluster_idx].shape[0], ))
-    return pruned_edges

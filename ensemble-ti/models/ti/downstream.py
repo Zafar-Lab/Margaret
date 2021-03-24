@@ -57,18 +57,23 @@ def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', termi
     communities = ad.obs[cluster_key]
     cluster_ids = np.unique(communities)
     terminal_ids = ad.uns[terminal_key]
-    inter_cluster_ids = set(cluster_ids) - set(terminal_ids)
     g = ad.uns[graph_key]
+
+    # TODO: Should this adjacency matrix be normalized?
     adj_g = nx.convert_matrix.to_numpy_array(g)
 
-    cluster_lineage_likelihoods = pd.DataFrame(columns=terminal_ids, index=inter_cluster_ids)
+    cluster_lineage_likelihoods = pd.DataFrame(np.zeros((len(cluster_ids), len(terminal_ids))), columns=terminal_ids, index=cluster_ids)
     for t_id in terminal_ids:
-        for c_id in inter_cluster_ids:
-            paths = nx.all_simple_paths(g, c_id, t_id)
+        for c_id in cluster_ids:
+            # All terminal states end up in that state
+            if c_id == t_id:
+                cluster_lineage_likelihoods.loc[c_id, t_id] = 1.0
+                continue
+
             # Compute total likelihood along all possible paths
+            paths = nx.all_simple_paths(g, c_id, t_id)
             likelihood = 0
             for path in paths:
-                # Compute the likelihood for this path
                 next_state = path[0]
                 _l = 1
                 for idx in range(1, len(path)):
@@ -78,6 +83,60 @@ def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', termi
             cluster_lineage_likelihoods.loc[c_id, t_id] = likelihood
 
     # Row-Normalize the lineage likelihoods
-    non_island_inds = cluster_lineage_likelihoods.sum(axis=1) > 0
-    cluster_lineage_likelihoods[non_island_inds] = cluster_lineage_likelihoods[non_island_inds].div(cluster_lineage_likelihoods[non_island_inds].sum(axis=1), axis=0)
+    nz_inds = cluster_lineage_likelihoods.sum(axis=1) > 0
+    cluster_lineage_likelihoods[nz_inds] = cluster_lineage_likelihoods[nz_inds].div(cluster_lineage_likelihoods[nz_inds].sum(axis=1), axis=0)
+
     return cluster_lineage_likelihoods
+
+
+def compute_cell_branch_probs(ad, adj_dist, cluster_lineages, cluster_key='metric_clusters', graph_key='metric_trajectory'):
+    communities = ad.obs[cluster_key]
+    cluster_ids = np.unique(communities)
+    n_clusters = len(cluster_ids)
+    N = communities.shape[0]
+
+    # Prune the distance graph
+    g = ad.uns[graph_key]
+    adj_g = nx.convert_matrix.to_numpy_array(g)
+    adj_dist_pruned = _prune_network_edges(communities, adj_dist, adj_g)
+    adj_dist_pruned = pd.DataFrame(adj_dist_pruned, index=communities.index, columns=communities.index)
+
+    # Compute the cell to cluster connectivity
+    cell_branch_probs = pd.DataFrame(np.zeros((N, n_clusters)), index=communities.index, columns=np.unique(communities))
+    for idx in communities.index:
+        row = adj_dist_pruned.loc[idx, :]
+        neighboring_clus = communities[np.where(row > 0)[0]]
+
+        for clus_i in set(neighboring_clus):
+            num_clus_i = np.sum(row.loc[neighboring_clus.index[np.where(neighboring_clus == clus_i)]])
+            w_i = num_clus_i / np.sum(row)
+            cell_branch_probs.loc[idx, clus_i] = w_i
+
+    # Project onto cluster lineage probabilities
+    cell_branch_probs = cell_branch_probs.dot(cluster_lineages)
+    return cell_branch_probs
+
+
+def _prune_network_edges(communities, adj_sc, adj_cluster):
+    n_communities = np.unique(communities).shape[0]
+    n_pruned = 0
+
+    # Create cluster index
+    clusters = []
+    for idx in range(n_communities):
+        cluster_idx = communities == idx
+        clusters.append(cluster_idx)
+
+    n_row, n_col = adj_cluster.shape
+    col_ids = np.arange(n_col)
+    for c_idx in range(n_row):
+        cluster_i = clusters[c_idx]
+        non_connected_clusters = col_ids[adj_cluster[c_idx] == 0]
+        for nc_idx in non_connected_clusters:
+            if nc_idx == c_idx:
+                continue
+            n_pruned += np.sum(adj_sc[cluster_i, nc_idx] > 0)
+            adj_sc[cluster_i, nc_idx] = np.zeros_like(adj_sc[cluster_i, nc_idx]).squeeze()
+
+    print(f'Successfully pruned {n_pruned} edges')
+    return adj_sc

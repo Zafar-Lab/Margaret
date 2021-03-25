@@ -4,11 +4,13 @@ import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
+from utils.util import get_start_cell_cluster_id
+
 
 def get_terminal_states(ad, start_cell_ids, use_rep='metric_embedding', cluster_key='metric_clusters', graph_key='metric_trajectory'):
     # Check 1: Input must be in AnnData format
     assert isinstance(ad, sc.AnnData)
-
+ 
     # Check 2: All keys must be present
     if use_rep not in ad.obsm_keys():
         raise ValueError(f'Representation `{use_rep}` not present in ad.obsm.')
@@ -102,13 +104,13 @@ def compute_cell_branch_probs(ad, adj_dist, cluster_lineages, cluster_key='metri
     adj_dist_pruned = pd.DataFrame(adj_dist_pruned, index=communities.index, columns=communities.index)
 
     # Compute the cell to cluster connectivity
-    cell_branch_probs = pd.DataFrame(np.zeros((N, n_clusters)), index=communities.index, columns=np.unique(communities))
+    cell_branch_probs = pd.DataFrame(np.zeros((N, n_clusters)), index=communities.index, columns=cluster_ids)
     for idx in communities.index:
         row = adj_dist_pruned.loc[idx, :]
         neighboring_clus = communities[np.where(row > 0)[0]]
 
         for clus_i in set(neighboring_clus):
-            num_clus_i = np.sum(row.loc[neighboring_clus.index[np.where(neighboring_clus == clus_i)]])
+            num_clus_i = np.sum(row.loc[neighboring_clus.index[np.where(neighboring_clus == clus_i)[0]]])
             w_i = num_clus_i / np.sum(row)
             cell_branch_probs.loc[idx, clus_i] = w_i
 
@@ -135,8 +137,9 @@ def _prune_network_edges(communities, adj_sc, adj_cluster):
         for nc_idx in non_connected_clusters:
             if nc_idx == c_idx:
                 continue
-            n_pruned += np.sum(adj_sc[cluster_i, nc_idx] > 0)
-            adj_sc[cluster_i, nc_idx] = np.zeros_like(adj_sc[cluster_i, nc_idx]).squeeze()
+            cluster_nc = clusters[nc_idx]
+            n_pruned += np.sum(adj_sc[cluster_i, :][:, cluster_nc] > 0)
+            adj_sc[cluster_i, :][:, cluster_nc] = np.zeros_like(adj_sc[cluster_i, :][:, cluster_nc]).squeeze()
 
     print(f'Successfully pruned {n_pruned} edges')
     return adj_sc

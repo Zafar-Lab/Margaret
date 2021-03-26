@@ -61,8 +61,8 @@ def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', termi
     terminal_ids = ad.uns[terminal_key]
     g = ad.uns[graph_key]
 
-    # TODO: Should this adjacency matrix be normalized?
-    adj_g = nx.convert_matrix.to_numpy_array(g)
+    nz_inds = adj_g.sum(axis=1) > 0
+    adj_g[nz_inds] = adj_g[nz_inds] / adj_g[nz_inds].sum(axis=1)[:, np.newaxis]
 
     cluster_lineage_likelihoods = pd.DataFrame(np.zeros((len(cluster_ids), len(terminal_ids))), columns=terminal_ids, index=cluster_ids)
     for t_id in terminal_ids:

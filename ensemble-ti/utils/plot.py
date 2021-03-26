@@ -5,6 +5,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import phate
+import pygam as pg
 import umap
  
 from matplotlib import cm
@@ -79,7 +80,7 @@ def plot_gene_expression(adata, genes, nrows=1, cmap=None, figsize=None, marker_
         for col_idx in range(ncols):
             gene_name = net_genes[gene_index]
             gene_expression = imputed_data_df[gene_name].to_numpy()
-            axes = plt.subplot(gs[row_idx, col_idx]) 
+            axes = plt.subplot(gs[row_idx, col_idx])
             axes.scatter(
                 X_embedded[:, 0], X_embedded[:, 1], s=marker_size,
                 c=gene_expression, cmap=cmap
@@ -212,3 +213,44 @@ def plot_gt_milestone_network(ad, uns_mn_key='milestone_network', start_node_col
     plt.axis('off')
     edge_weights = [1 + w for _, _, w in milestone_network.edges.data("weight")]
     nx.draw_networkx(milestone_network, pos=nx.spring_layout(milestone_network), node_size=node_size, width=edge_weights, node_color=color_map, font_size=font_size)
+
+
+def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pseudotime', imputed_key='X_magic', nrows=1, figsize=None):
+    # NOTE: Code inspired from https://github.com/ShobiStassen/VIA/blob/e69a0776108a23e5ecc61f75a3fb672b323c4f32/VIA/core.py#L2114
+    t_states = cell_branch_probs.columns
+    pt = ad.obs[pseudotime_key]
+    imputed_data_df = pd.DataFrame(ad.obsm[imputed_key], columns=ad.var_names, index=ad.obs_names)
+
+    ncols = math.ceil(len(genes) / nrows)
+    gs = plt.GridSpec(nrows=nrows, ncols=ncols)
+    fig = plt.figure(figsize=figsize)
+    gene_idx = 0
+
+    # Compute lineage expression trends for each gene
+    for row_idx in range(nrows):
+        for col_idx in range(ncols):
+            axes = plt.subplot(gs[row_idx, col_idx])
+            gene_exp = imputed_data_df.loc[:, genes[gene_idx]]
+            for i in t_states:
+                # Get the val set
+                loc_i = np.where(cell_branch_probs.loc[:, i] > 0.95)[0]
+                val_pt = pt[loc_i]
+                max_val_pt = max(val_pt)
+
+                # Fit GAM
+                loc_i_bp = np.where(cell_branch_probs.loc[:, i] > 0.000)[0]
+                x = np.asarray(pt)[loc_i_bp].reshape(-1, 1)
+                y = np.asarray(gene_exp)[loc_i_bp].reshape(-1, 1)
+                weights = np.asarray(cell_branch_probs.loc[:, i])[loc_i_bp].reshape(-1, 1)
+                geneGAM = pg.LinearGAM(n_splines=10, spline_order=4, lam=10).fit(x, y, weights=weights)
+                
+                # Eval GAM
+                nx_spacing = 100
+                xval = np.linspace(0, max_val_pt, nx_spacing * 2)
+                yg = geneGAM.predict(X=xval)
+
+                # Plot
+                axes.plot(xval, yg, linewidth=3.5, zorder=3, label='TS:' + str(i))
+            axes.legend()
+            axes.title('Trend:' + genes[gene_idx])
+    plt.show()

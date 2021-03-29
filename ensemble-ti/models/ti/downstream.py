@@ -61,6 +61,7 @@ def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', termi
     terminal_ids = ad.uns[terminal_key]
     g = ad.uns[graph_key]
 
+    adj_g = nx.convert_matrix.to_numpy_array(g)
     nz_inds = adj_g.sum(axis=1) > 0
     adj_g[nz_inds] = adj_g[nz_inds] / adj_g[nz_inds].sum(axis=1)[:, np.newaxis]
 

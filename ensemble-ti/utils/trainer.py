@@ -3,6 +3,7 @@ import gc
 import numpy as np
 import os
 import torch
+import torch.nn.functional as F
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
@@ -248,6 +249,27 @@ class MetricTrainer(UnsupervisedTrainer):
             X_pos = self.model(pos.float())
             X_neg = self.model(neg.float())
             loss = self.train_criterion(X_anchor, X_pos, X_neg)
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss += loss.item()
+        return epoch_loss/ len(self.train_loader)
+
+
+class MetricAETrainer(UnsupervisedTrainer):
+    def train_one_epoch(self):
+        self.model.train()
+        epoch_loss = 0
+        tk0 = self.train_loader
+
+        for idx, (anchor, pos, neg) in enumerate(tk0):
+            self.optimizer.zero_grad()
+            anchor = anchor.to(self.device)
+            pos = pos.to(self.device)
+            neg = neg.to(self.device)
+            anchor_embedding, anchor_recon = self.model(anchor.float())
+            pos_embedding, _ = self.model(pos.float())
+            neg_embedding, _ = self.model(neg.float())
+            loss = F.mse_loss(anchor_recon, anchor) + self.train_criterion(X_anchor, X_pos, X_neg)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()

@@ -8,6 +8,7 @@ from tqdm import tqdm
 from datasets.metric import MetricDataset
 from datasets.np import NpDataset
 from models.metric import MetricEncoder
+from models.ae import AE
 from utils.trainer import MetricTrainer
 from utils.util import compute_runtime, determine_cell_clusters
 
@@ -37,7 +38,8 @@ def train_metric_learner(
 
     # Model
     infeatures = X.shape[-1]
-    model = MetricEncoder(infeatures, code_size=code_size).to(device)
+    model = AE(infeatures, code_size=code_size).to(device)
+    # model = MetricEncoder(infeatures, code_size=code_size).to(device)
 
     # Trainer
     trainer = MetricTrainer(dataset, model, train_loss, random_state=random_state, backend=device, **trainer_kwargs)

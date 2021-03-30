@@ -74,7 +74,7 @@ def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, 
 
     if variance is not None:
         # Determine the number of components dynamically
-        comps_ = X.shape[-1] - 1 if X.shape[-1] < 1000 else 1000
+        comps_ = min(X.shape[0], X.shape[1])
         pca = PCA(n_components=comps_, random_state=random_state)
         pca.fit(X)
         try:

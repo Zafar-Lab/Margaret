@@ -9,7 +9,7 @@ from datasets.metric import MetricDataset
 from datasets.np import NpDataset
 from models.metric import MetricEncoder
 from models.ae import AE
-from utils.trainer import MetricTrainer
+from utils.trainer import MetricTrainer, MetricAETrainer
 from utils.util import compute_runtime, determine_cell_clusters
 
 

@@ -269,7 +269,7 @@ class MetricAETrainer(UnsupervisedTrainer):
             anchor_embedding, anchor_recon = self.model(anchor.float())
             pos_embedding, _ = self.model(pos.float())
             neg_embedding, _ = self.model(neg.float())
-            loss = F.mse_loss(anchor_recon, anchor) + self.train_criterion(X_anchor, X_pos, X_neg)
+            loss = F.mse_loss(anchor_recon, anchor) + self.train_criterion(anchor_embedding, pos_embedding, neg_embedding)
             loss.backward()
             self.optimizer.step()
             epoch_loss += loss.item()

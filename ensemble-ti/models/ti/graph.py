@@ -91,9 +91,11 @@ def compute_trajectory_graph(embeddings, communities, cluster_connectivities, st
 
 
 def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
-    g = nx.DiGraph()
+    N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
     cluster_ids = np.unique(communities)
+
+    adj = pd.DataFrame(np.zeros((N, N)), index=cluster_ids, columns=cluster_ids)
 
     # Create cluster index
     cluster_pseudotime = pd.DataFrame(index=cluster_ids)
@@ -108,5 +110,10 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
         for c_idx in connected_c_idx:
             if (cluster_pseudotime.loc[c_idx, 't'] > cluster_pseudotime.loc[idx, 't']) and \
                 (adj_cluster.loc[c_idx, idx] != 0):
-                g.add_edge(idx, c_idx, weight=cluster_pseudotime.loc[c_idx] - cluster_pseudotime.loc[idx])
+                # The edge weight will be inversely proportional to the difference in psuedotimes
+                adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx] - cluster_pseudotime.loc[idx])
+    
+    # Normalize the directed adjacency matrix
+    adj = adj.div(adj.sum(axis=1), axis=0)
+    g = nx.from_pandas_adjacency(adj, create_using=nx.DiGraph)
     return g

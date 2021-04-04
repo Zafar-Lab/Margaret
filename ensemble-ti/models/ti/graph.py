@@ -88,3 +88,25 @@ def compute_trajectory_graph(embeddings, communities, cluster_connectivities, st
                     continue
                 g.add_edge(current_node_id, id, weight=cluster_connectivities[current_node_id][id])
     return g, node_positions
+
+
+def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
+    g = nx.DiGraph()
+    n_communities = np.unique(communities).shape[0]
+    cluster_ids = np.unique(communities)
+
+    # Create cluster index
+    cluster_pseudotime = pd.DataFrame(index=cluster_ids)
+    for idx in cluster_ids:
+        cluster_idx = (communities == idx)
+        cluster_pseudotime.loc[idx, 't'] = np.mean(pseudotime.loc[cluster_idx])
+
+    cols = adj_cluster.columns
+    rows = adj_cluster.index
+    for idx in cluster_ids:
+        connected_c_idx = cols[adj_cluster.loc[idx, :] != 0]
+        for c_idx in connected_c_idx:
+            if (cluster_pseudotime.loc[c_idx, 't'] > cluster_pseudotime.loc[idx, 't']) and \
+                (adj_cluster.loc[c_idx, idx] != 0):
+                g.add_edge(idx, c_idx, weight=cluster_pseudotime.loc[c_idx] - cluster_pseudotime.loc[idx])
+    return g

@@ -5,8 +5,11 @@ import scanpy as sc
 import time
 
 from functools import wraps
+from scipy.sparse.csgraph import dijkstra
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import pairwise_distances
+
 
 
 def compute_runtime(func):
@@ -135,3 +138,67 @@ def get_start_cell_cluster_id(data, start_cell_ids, communities):
         start_cell_cluster_idx = communities[start_cell_idx]
         start_cluster_ids.add(start_cell_cluster_idx)
     return start_cluster_ids
+
+
+def prune_network_edges(communities, adj_sc, adj_cluster):
+    n_communities = np.unique(communities).shape[0]
+    n_pruned = 0
+
+    # Create cluster index
+    clusters = []
+    for idx in range(n_communities):
+        cluster_idx = communities == idx
+        clusters.append(cluster_idx)
+
+    n_row, n_col = adj_cluster.shape
+    col_ids = np.arange(n_col)
+    for c_idx in range(n_row):
+        cluster_i = clusters[c_idx]
+        non_connected_clusters = col_ids[adj_cluster[c_idx] == 0]
+        for nc_idx in non_connected_clusters:
+            if nc_idx == c_idx:
+                continue
+            cluster_nc = clusters[nc_idx]
+            # Keep track of number of edges pruned for book-keeping!
+            n_pruned += np.sum(adj_sc[cluster_i, :][:, cluster_nc] > 0)
+
+            # Prune (remove the edges between two non-connected clusters)
+            adj_sc[cluster_i, :][:, cluster_nc] = np.zeros_like(adj_sc[cluster_i, :][:, cluster_nc]).squeeze()
+
+    print(f'Successfully pruned {n_pruned} edges')
+    return adj_sc
+
+
+def connect_graph(adj, data, start_cell_id):
+    # TODO: Update the heuristic here which involves using the
+    # cell with the max distance to establish a connection with
+    # the disconnected parts of the clusters.
+
+    index = adj.index
+    dists = pd.Series(dijkstra(adj, indices=start_cell_id), index=index)
+    unreachable_nodes = index[dists == np.inf]
+    if len(unreachable_nodes) == 0:
+        return adj
+
+    # Connect unreachable nodes
+    while len(unreachable_nodes) > 0:
+        farthest_reachable_id = dists.loc[index[dists != np.inf]].idxmax()
+
+        # Compute distances to unreachable nodes
+        unreachable_dists = pairwise_distances(
+            data.loc[farthest_reachable_id, :].values.reshape(1, -1),
+            data.loc[unreachable_nodes, :],
+        )
+        unreachable_dists = pd.Series(
+            np.ravel(unreachable_dists), index=unreachable_nodes
+        )
+
+        # Add edge between farthest reacheable and its nearest unreachable
+        adj.loc[farthest_reachable_id, unreachable_dists.idxmin()] = unreachable_dists.min()
+
+        # Recompute distances to early cell
+        dists = pd.Series(dijkstra(adj, indices=start_cell_id), index=index)
+
+        # Idenfity unreachable nodes
+        unreachable_nodes = index[dists == np.inf]
+    return adj

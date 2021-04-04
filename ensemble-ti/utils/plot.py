@@ -11,11 +11,11 @@ import umap
 from matplotlib import cm
 from sklearn.manifold import TSNE
 
-from models.ti.graph import compute_connectivity_graph, compute_trajectory_graph
+from models.ti.graph import compute_connectivity_graph, compute_trajectory_graph, compute_trajectory_graph_v2
 from utils.util import compute_runtime
 
 
-def plot_embeddings(X, figsize=None, save_path=None, save_kwargs={}, title=None, **kwargs):
+def plot_embeddings(X, figsize=(12, 8), save_path=None, save_kwargs={}, title=None, **kwargs):
     assert X.shape[-1] == 2
     plt.figure(figsize=figsize)
     if title is not None:
@@ -148,11 +148,42 @@ def plot_pseudotime(
     plt.show()
 
 
+def plot_graph(
+    G, node_positions=None, cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black',
+    title=None, save_path=None, save_kwargs={}
+):
+    # Draw the graph
+    plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
+    plt.axis('off')
+    edge_weights = [w for _, _, w in g.edges.data("weight")]
+    nx.draw_networkx(g, pos=node_positions, cmap=cmap, node_color=np.unique(communities), font_color=font_color, node_size=node_size, width=edge_weights)
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+
+
 def plot_trajectory_graph(
     embeddings, communities, cluster_connectivities, start_cell_ids, cmap='YlGn', figsize=(16, 12),
     node_size=400, font_color='black', title=None, save_path=None, save_kwargs={}
 ):
     g, node_positions = compute_trajectory_graph(embeddings, communities, cluster_connectivities, start_cell_ids)
+    # Draw the graph
+    plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
+    plt.axis('off')
+    edge_weights = [0.2 + w for _, _, w in g.edges.data("weight")]
+    nx.draw_networkx(g, pos=node_positions, cmap=cmap, node_color=np.unique(communities), font_color=font_color, node_size=node_size, width=edge_weights)
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+
+
+def plot_trajectory_graph_v2(
+    pseudotime, adj_cluster, communities, node_positions, cmap='YlGn', figsize=(16, 12),
+    node_size=400, font_color='black', title=None, save_path=None, save_kwargs={}
+):
+    g = compute_trajectory_graph_v2(pseudotime, adj_cluster, communities)
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:

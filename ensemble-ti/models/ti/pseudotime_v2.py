@@ -32,7 +32,10 @@ def compute_pseudotime(ad, start_cell_ids, adj_dist, adj_cluster, comm_key='metr
         adj_sc = adj_dist_pruned.loc[cluster, cluster]
         adj_sc = connect_graph(adj_sc, data.loc[cluster, :], np.where(adj_sc.index == cluster_start_cell)[0][0])
 
-    # Recompute the pseudotime after making the clusters compact
+        # Update the cluster graph with
+        adj_dist_pruned.loc[cluster, cluster] = adj_sc
+
+    # Recompute the pseudotime with the updated graph
     p = dijkstra(adj_dist_pruned, indices=start_indices, min_only=True)
     pseudotime = pd.Series(p, index=ad.obs_names)
 

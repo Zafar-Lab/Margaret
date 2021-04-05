@@ -37,5 +37,5 @@ def compute_pseudotime(ad, start_cell_ids, adj_dist, adj_cluster, comm_key='metr
     pseudotime = pd.Series(p, index=ad.obs_names)
 
     # Add pseudotime to annotated data object
-    ad.obs['metric_pseudotime'] = pseudotime
+    ad.obs['metric_pseudotime_v2'] = pseudotime
     return pseudotime

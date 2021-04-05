@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import pandas as pd
 
 from utils.util import compute_runtime
 
@@ -90,12 +91,12 @@ def compute_trajectory_graph(embeddings, communities, cluster_connectivities, st
     return g, node_positions
 
 
+@compute_runtime
 def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
-    N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
     cluster_ids = np.unique(communities)
 
-    adj = pd.DataFrame(np.zeros((N, N)), index=cluster_ids, columns=cluster_ids)
+    adj = pd.DataFrame(np.zeros((n_communities, n_communities)), index=cluster_ids, columns=cluster_ids)
 
     # Create cluster index
     cluster_pseudotime = pd.DataFrame(index=cluster_ids)
@@ -111,7 +112,7 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
             if (cluster_pseudotime.loc[c_idx, 't'] > cluster_pseudotime.loc[idx, 't']) and \
                 (adj_cluster.loc[c_idx, idx] != 0):
                 # The edge weight will be inversely proportional to the difference in psuedotimes
-                adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx] - cluster_pseudotime.loc[idx])
+                adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't'])
     
     # Normalize the directed adjacency matrix
     adj = adj.div(adj.sum(axis=1), axis=0)

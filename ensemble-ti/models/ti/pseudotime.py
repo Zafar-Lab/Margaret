@@ -3,8 +3,7 @@ import pandas as pd
 import scipy.stats as stats
 
 from scipy.sparse.csgraph import dijkstra
-from sklearn.metrics import pairwise_distances
-from utils.util import get_start_cell_cluster_id, compute_runtime
+from utils.util import get_start_cell_cluster_id, compute_runtime, connect_graph
 
 
 @compute_runtime
@@ -39,7 +38,7 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
 
             # Compute shortest path distances within the start cluster
             adj_sc = adj_dist.loc[clusters[sc_id], clusters[sc_id]]
-            adj_sc = _connect_graph(adj_sc, data.loc[clusters[sc_id], :], np.where(adj_sc.index == s)[0][0])
+            adj_sc = connect_graph(adj_sc, data.loc[clusters[sc_id], :], np.where(adj_sc.index == s)[0][0])
             dists_sc = dijkstra(adj_sc, indices=np.where(adj_sc.index == s)[0][0])
             pseudotime[clusters[sc_id]] = dists_sc
             computed.append(sc_id)
@@ -65,7 +64,7 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
                     early_cell_id = candidates.index[np.argmin(candidates)]
 
                     adj_cc = adj_dist.loc[clusters[c], clusters[c]]
-                    adj_cc = _connect_graph(adj_cc, data.loc[clusters[c], :], np.where(adj_cc.index == early_cell_id)[0][0])
+                    adj_cc = connect_graph(adj_cc, data.loc[clusters[c], :], np.where(adj_cc.index == early_cell_id)[0][0])
                     pseudotime_n = dijkstra(adj_cc, indices=np.where(adj_cc.index == early_cell_id)[0][0])
                     pseudotime_n += (pseudotime.loc[max_neigh_cell_id] + adj_dist_nc.loc[max_neigh_cell_id, early_cell_id])
                     c_pseudotimes.append(pseudotime_n)
@@ -86,38 +85,3 @@ def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, c
     # Add pseudotime to annotated data object
     ad.obs['metric_pseudotime'] = pseudotime
     return pseudotime
-
-
-def _connect_graph(adj, data, start_cell_id):
-    # TODO: Update the heuristic here which involves using the
-    # cell with the max distance to establish a connection with
-    # the disconnected parts of the clusters.
-
-    index = adj.index
-    dists = pd.Series(dijkstra(adj, indices=start_cell_id), index=index)
-    unreachable_nodes = index[dists == np.inf]
-    if len(unreachable_nodes) == 0:
-        return adj
-
-    # Connect unreachable nodes
-    while len(unreachable_nodes) > 0:
-        farthest_reachable_id = dists.loc[index[dists != np.inf]].idxmax()
-
-        # Compute distances to unreachable nodes
-        unreachable_dists = pairwise_distances(
-            data.loc[farthest_reachable_id, :].values.reshape(1, -1),
-            data.loc[unreachable_nodes, :],
-        )
-        unreachable_dists = pd.Series(
-            np.ravel(unreachable_dists), index=unreachable_nodes
-        )
-
-        # Add edge between farthest reacheable and its nearest unreachable
-        adj.loc[farthest_reachable_id, unreachable_dists.idxmin()] = unreachable_dists.min()
-
-        # Recompute distances to early cell
-        dists = pd.Series(dijkstra(adj, indices=start_cell_id), index=index)
-
-        # Idenfity unreachable nodes
-        unreachable_nodes = index[dists == np.inf]
-    return adj

@@ -188,7 +188,7 @@ def evaluate_paga_topology(dataset_file_path, results_dir=os.getcwd(), resolutio
                 im = IpsenMikhailov()
                 net1 = compute_gt_milestone_network(ad, mode='undirected')
                 net2 = nx.from_scipy_sparse_matrix(ad.uns['paga']['connectivities'])
-                r.loc[name, resolution] = im(net1, net2)
+                r.loc[name, f'IM@{resolution}'] = im(net1, net2)
 
                 # Compute pseudotime
                 gt_pseudotime = ad.uns['timecourse'].reindex(ad.obs_names)

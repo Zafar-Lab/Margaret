@@ -4,7 +4,7 @@ import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
-from utils.util import get_start_cell_cluster_id
+from utils.util import get_start_cell_cluster_id, prune_network_edges
 
 
 def get_terminal_states(ad, start_cell_ids, use_rep='metric_embedding', cluster_key='metric_clusters', graph_key='metric_trajectory'):
@@ -61,6 +61,7 @@ def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', termi
     terminal_ids = ad.uns[terminal_key]
     g = ad.uns[graph_key]
 
+    adj_g = nx.convert_matrix.to_numpy_array(g)
     nz_inds = adj_g.sum(axis=1) > 0
     adj_g[nz_inds] = adj_g[nz_inds] / adj_g[nz_inds].sum(axis=1)[:, np.newaxis]
 
@@ -100,7 +101,7 @@ def compute_cell_branch_probs(ad, adj_dist, cluster_lineages, cluster_key='metri
     # Prune the distance graph
     g = ad.uns[graph_key]
     adj_g = nx.convert_matrix.to_numpy_array(g)
-    adj_dist_pruned = _prune_network_edges(communities, adj_dist, adj_g)
+    adj_dist_pruned = prune_network_edges(communities, adj_dist, adj_g)
     adj_dist_pruned = pd.DataFrame(adj_dist_pruned, index=communities.index, columns=communities.index)
 
     # Compute the cell to cluster connectivity
@@ -117,29 +118,3 @@ def compute_cell_branch_probs(ad, adj_dist, cluster_lineages, cluster_key='metri
     # Project onto cluster lineage probabilities
     cell_branch_probs = cell_branch_probs.dot(cluster_lineages)
     return cell_branch_probs
-
-
-def _prune_network_edges(communities, adj_sc, adj_cluster):
-    n_communities = np.unique(communities).shape[0]
-    n_pruned = 0
-
-    # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
-        cluster_idx = communities == idx
-        clusters.append(cluster_idx)
-
-    n_row, n_col = adj_cluster.shape
-    col_ids = np.arange(n_col)
-    for c_idx in range(n_row):
-        cluster_i = clusters[c_idx]
-        non_connected_clusters = col_ids[adj_cluster[c_idx] == 0]
-        for nc_idx in non_connected_clusters:
-            if nc_idx == c_idx:
-                continue
-            cluster_nc = clusters[nc_idx]
-            n_pruned += np.sum(adj_sc[cluster_i, :][:, cluster_nc] > 0)
-            adj_sc[cluster_i, :][:, cluster_nc] = np.zeros_like(adj_sc[cluster_i, :][:, cluster_nc]).squeeze()
-
-    print(f'Successfully pruned {n_pruned} edges')
-    return adj_sc

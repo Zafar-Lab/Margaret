@@ -6,7 +6,10 @@ from utils.util import get_start_cell_cluster_id, compute_runtime, prune_network
 
 
 @compute_runtime
-def compute_pseudotime(ad, start_cell_ids, adj_dist, adj_cluster, comm_key='metric_clusters', data_key='metric_embedding'):
+def compute_pseudotime(
+    ad, start_cell_ids, adj_dist, adj_cluster,
+    comm_key='metric_clusters', data_key='metric_embedding'
+):
     communities = ad.obs[comm_key]
     cluster_ids = np.unique(communities)
     data = pd.DataFrame(ad.obsm[data_key], index=ad.obs_names)

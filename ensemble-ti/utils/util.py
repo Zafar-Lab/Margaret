@@ -24,7 +24,20 @@ def compute_runtime(func):
 
 
 @compute_runtime
-def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500, pseudo_count=1.0):
+def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=False, scale=False, n_top_genes=1500, pseudo_count=1.0):
+    """A simple preprocessing recipe for scRNA data
+    Args:
+        adata (sc.AnnData): Input annotated data object
+        min_expr_level (int, optional): Min expression level for each cell. Defaults to None.
+        min_cells (int, optional): Min. expression level of a gene. Defaults to None.
+        use_hvg (bool, optional): Whether to select highly variable genes for analysis. Defaults to False.
+        scale (bool, optional): Whether to perform z-score normalization. Defaults to False.
+        n_top_genes (int, optional): No of highly variable genes to select if use_hvg is True. Defaults to 1500.
+        pseudo_count (float, optional): Pseudo count to use for log-normalization. Defaults to 1.0.
+
+    Returns:
+        [sc.AnnData]: Preprocessed copy of the input annotated data object
+    """
     preprocessed_data = adata.copy()
     print('Preprocessing....')
 
@@ -52,14 +65,34 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
 
 
 def log_transform(data, pseudo_count=1):
+    """Perform log-transformation of scRNA data
+
+    Args:
+        data ([sc.AnnData, np.ndarray, pd.DataFrame]): Input data
+        pseudo_count (int, optional): [description]. Defaults to 1.
+    """
     if type(data) is sc.AnnData:
         data.X = np.log2(data.X + pseudo_count) - np.log2(pseudo_count)
     else:
-        return np.log2(data + pseudo_count)
+        return np.log2(data + pseudo_count) - np.log2(pseudo_count)
 
 
 @compute_runtime
 def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, random_state=0):
+    """Helper method to compute PCA of the data. Uses the sklearn
+    implementation of PCA.
+
+    Args:
+        data (sc.AnnData): Input annotated data
+        n_components (int, optional): Number of PCA components. Defaults to 300.
+        use_hvg (bool, optional): Whether to use highly variable genes for PCA computation. Defaults to True.
+        variance (float, optional): Variance to account for. Defaults to None.
+        obsm_key (str, optional): An optional key to specify for which data to compute PCA for. Defaults to None.
+        random_state (int, optional): Random state. Defaults to 0.
+
+    Returns:
+        [type]: [description]
+    """
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found: {type(data)}')
 

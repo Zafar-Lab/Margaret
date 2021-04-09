@@ -8,25 +8,25 @@ from utils.util import get_start_cell_cluster_id, compute_runtime, prune_network
 @compute_runtime
 def compute_pseudotime(ad, start_cell_ids, adj_dist, adj_cluster, comm_key='metric_clusters', data_key='metric_embedding'):
     communities = ad.obs[comm_key]
-    n_communities = np.unique(communities).shape[0]
+    cluster_ids = np.unique(communities)
     data = pd.DataFrame(ad.obsm[data_key], index=ad.obs_names)
 
     # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
+    clusters = {}
+    for idx in cluster_ids:
         cluster_idx = communities == idx
-        clusters.append(cluster_idx)
+        clusters[idx] = cluster_idx
 
     # Prune the initial adjacency matrix
-    adj_dist_pruned = prune_network_edges(communities, adj_dist.todense(), adj_cluster)
-    adj_dist_pruned = pd.DataFrame(adj_dist_pruned, index=ad.obs_names, columns=ad.obs_names)
+    adj_dist = pd.DataFrame(adj_dist.todense(), index=ad.obs_names, columns=ad.obs_names)
+    adj_dist_pruned = prune_network_edges(communities, adj_dist, adj_cluster)
 
-    # Pseudotime computation
+    # Pseudotime computation on the pruned graph
     start_indices = [np.where(ad.obs_names == s)[0][0] for s in start_cell_ids]
-    p = dijkstra(adj_dist_pruned, indices=start_indices, min_only=True)
+    p = dijkstra(adj_dist_pruned.to_numpy(), indices=start_indices, min_only=True)
     pseudotime = pd.Series(p, index=ad.obs_names)
 
-    for cluster in clusters:
+    for c_idx, cluster in clusters.items():
         p_cluster = pseudotime.loc[cluster]
         cluster_start_cell = p_cluster.idxmin()
         adj_sc = adj_dist_pruned.loc[cluster, cluster]
@@ -38,6 +38,9 @@ def compute_pseudotime(ad, start_cell_ids, adj_dist, adj_cluster, comm_key='metr
     # Recompute the pseudotime with the updated graph
     p = dijkstra(adj_dist_pruned, indices=start_indices, min_only=True)
     pseudotime = pd.Series(p, index=ad.obs_names)
+
+    # Set the pseudotime for unreachable cells to 0
+    pseudotime[pseudotime == np.inf] = 0
 
     # Add pseudotime to annotated data object
     ad.obs['metric_pseudotime_v2'] = pseudotime

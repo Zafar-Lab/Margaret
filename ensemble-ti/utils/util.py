@@ -141,29 +141,30 @@ def get_start_cell_cluster_id(data, start_cell_ids, communities):
 
 
 def prune_network_edges(communities, adj_sc, adj_cluster):
-    n_communities = np.unique(communities).shape[0]
+    cluster_ids = np.unique(communities)
     n_pruned = 0
 
     # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
+    clusters = {}
+    for idx in cluster_ids:
         cluster_idx = communities == idx
-        clusters.append(cluster_idx)
+        clusters[idx] = cluster_idx
 
-    n_row, n_col = adj_cluster.shape
-    col_ids = np.arange(n_col)
-    for c_idx in range(n_row):
+    col_ids = adj_cluster.columns
+    for c_idx in adj_cluster.index:
         cluster_i = clusters[c_idx]
-        non_connected_clusters = col_ids[adj_cluster[c_idx] == 0]
+        non_connected_clusters = col_ids[adj_cluster.loc[c_idx, :] == 0]
         for nc_idx in non_connected_clusters:
             if nc_idx == c_idx:
                 continue
             cluster_nc = clusters[nc_idx]
+            adj_i_nc = adj_sc.loc[cluster_i, cluster_nc]
+
             # Keep track of number of edges pruned for book-keeping!
-            n_pruned += np.sum(adj_sc[cluster_i, :][:, cluster_nc] > 0)
+            n_pruned += np.sum(adj_i_nc.to_numpy() > 0)
 
             # Prune (remove the edges between two non-connected clusters)
-            adj_sc[cluster_i, :][:, cluster_nc] = np.zeros_like(adj_sc[cluster_i, :][:, cluster_nc]).squeeze()
+            adj_sc.loc[cluster_i, cluster_nc] = np.zeros_like(adj_i_nc).squeeze()
 
     print(f'Successfully pruned {n_pruned} edges')
     return adj_sc

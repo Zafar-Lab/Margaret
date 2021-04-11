@@ -116,5 +116,5 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
     
     # Normalize the directed adjacency matrix
     # We return the adjacency matrix as nx.Graph is not serializable
-    adj = adj.div(adj.sum(axis=1), axis=0)
+    adj = adj.div(adj.sum(axis=1), axis=0).fillna(0)
     return adj

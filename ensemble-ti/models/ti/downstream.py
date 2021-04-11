@@ -60,20 +60,16 @@ def get_terminal_states(ad, adj_g, start_cell_ids, use_rep='metric_embedding', c
     return terminal_candidates
 
 
-def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', terminal_key='metric_terminal_clusters', graph_key='metric_trajectory'):
+def compute_cluster_lineage_likelihoods(ad, adj_g, cluster_key='metric_clusters', terminal_key='metric_terminal_clusters'):
     communities = ad.obs[cluster_key]
     cluster_ids = np.unique(communities)
     terminal_ids = ad.uns[terminal_key]
-    g = ad.uns[graph_key]
-
-    adj_g = nx.convert_matrix.to_numpy_array(g)
-    nz_inds = adj_g.sum(axis=1) > 0
-    adj_g[nz_inds] = adj_g[nz_inds] / adj_g[nz_inds].sum(axis=1)[:, np.newaxis]
-
+    g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
     cluster_lineage_likelihoods = pd.DataFrame(np.zeros((len(cluster_ids), len(terminal_ids))), columns=terminal_ids, index=cluster_ids)
+
     for t_id in terminal_ids:
         for c_id in cluster_ids:
-            # All terminal states end up in that state
+            # All terminal states end up in that state with prob 1.0
             if c_id == t_id:
                 cluster_lineage_likelihoods.loc[c_id, t_id] = 1.0
                 continue
@@ -85,7 +81,7 @@ def compute_cluster_lineage_likelihoods(ad, cluster_key='metric_clusters', termi
                 next_state = path[0]
                 _l = 1
                 for idx in range(1, len(path)):
-                    _l *= adj_g[next_state, path[idx]]
+                    _l *= adj_g.loc[next_state, path[idx]]
                     next_state = path[idx]
                 likelihood += _l
             cluster_lineage_likelihoods.loc[c_id, t_id] = likelihood

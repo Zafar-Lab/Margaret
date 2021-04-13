@@ -7,7 +7,10 @@ from utils.util import get_start_cell_cluster_id, compute_runtime, connect_graph
 
 
 @compute_runtime
-def compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, connectivities, comm_key='communities', data_key='X_metric', max_iter=10):
+def compute_pseudotime(
+    ad, start_cell_ids, adj_conn, adj_dist, connectivities,
+    comm_key='metric_clusters', data_key='metric_embnedding', max_iter=10
+):
     communities = ad.obs[comm_key]
     n_communities = np.unique(communities).shape[0]
     base_inds = np.arange(n_communities)

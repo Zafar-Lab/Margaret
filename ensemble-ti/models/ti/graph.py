@@ -115,6 +115,6 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
                 adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't'])
     
     # Normalize the directed adjacency matrix
-    adj = adj.div(adj.sum(axis=1), axis=0)
-    g = nx.from_pandas_adjacency(adj, create_using=nx.DiGraph)
-    return g
+    # We return the adjacency matrix as nx.Graph is not serializable
+    adj = adj.div(adj.sum(axis=1), axis=0).fillna(0)
+    return adj

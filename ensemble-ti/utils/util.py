@@ -24,7 +24,20 @@ def compute_runtime(func):
 
 
 @compute_runtime
-def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, scale=False, n_top_genes=1500, pseudo_count=1.0):
+def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=False, scale=False, n_top_genes=1500, pseudo_count=1.0):
+    """A simple preprocessing recipe for scRNA data
+    Args:
+        adata (sc.AnnData): Input annotated data object
+        min_expr_level (int, optional): Min expression level for each cell. Defaults to None.
+        min_cells (int, optional): Min. expression level of a gene. Defaults to None.
+        use_hvg (bool, optional): Whether to select highly variable genes for analysis. Defaults to False.
+        scale (bool, optional): Whether to perform z-score normalization. Defaults to False.
+        n_top_genes (int, optional): No of highly variable genes to select if use_hvg is True. Defaults to 1500.
+        pseudo_count (float, optional): Pseudo count to use for log-normalization. Defaults to 1.0.
+
+    Returns:
+        [sc.AnnData]: Preprocessed copy of the input annotated data object
+    """
     preprocessed_data = adata.copy()
     print('Preprocessing....')
 
@@ -52,14 +65,34 @@ def preprocess_recipe(adata, min_expr_level=None, min_cells=None, use_hvg=True, 
 
 
 def log_transform(data, pseudo_count=1):
+    """Perform log-transformation of scRNA data
+
+    Args:
+        data ([sc.AnnData, np.ndarray, pd.DataFrame]): Input data
+        pseudo_count (int, optional): [description]. Defaults to 1.
+    """
     if type(data) is sc.AnnData:
         data.X = np.log2(data.X + pseudo_count) - np.log2(pseudo_count)
     else:
-        return np.log2(data + pseudo_count)
+        return np.log2(data + pseudo_count) - np.log2(pseudo_count)
 
 
 @compute_runtime
 def run_pca(data, n_components=300, use_hvg=True, variance=None, obsm_key=None, random_state=0):
+    """Helper method to compute PCA of the data. Uses the sklearn
+    implementation of PCA.
+
+    Args:
+        data (sc.AnnData): Input annotated data
+        n_components (int, optional): Number of PCA components. Defaults to 300.
+        use_hvg (bool, optional): Whether to use highly variable genes for PCA computation. Defaults to True.
+        variance (float, optional): Variance to account for. Defaults to None.
+        obsm_key (str, optional): An optional key to specify for which data to compute PCA for. Defaults to None.
+        random_state (int, optional): Random state. Defaults to 0.
+
+    Returns:
+        [type]: [description]
+    """
     if not isinstance(data, sc.AnnData):
         raise Exception(f'Expected data to be of type sc.AnnData found: {type(data)}')
 
@@ -141,29 +174,30 @@ def get_start_cell_cluster_id(data, start_cell_ids, communities):
 
 
 def prune_network_edges(communities, adj_sc, adj_cluster):
-    n_communities = np.unique(communities).shape[0]
+    cluster_ids = np.unique(communities)
     n_pruned = 0
 
     # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
+    clusters = {}
+    for idx in cluster_ids:
         cluster_idx = communities == idx
-        clusters.append(cluster_idx)
+        clusters[idx] = cluster_idx
 
-    n_row, n_col = adj_cluster.shape
-    col_ids = np.arange(n_col)
-    for c_idx in range(n_row):
+    col_ids = adj_cluster.columns
+    for c_idx in adj_cluster.index:
         cluster_i = clusters[c_idx]
-        non_connected_clusters = col_ids[adj_cluster[c_idx] == 0]
+        non_connected_clusters = col_ids[adj_cluster.loc[c_idx, :] == 0]
         for nc_idx in non_connected_clusters:
             if nc_idx == c_idx:
                 continue
             cluster_nc = clusters[nc_idx]
+            adj_i_nc = adj_sc.loc[cluster_i, cluster_nc]
+
             # Keep track of number of edges pruned for book-keeping!
-            n_pruned += np.sum(adj_sc[cluster_i, :][:, cluster_nc] > 0)
+            n_pruned += np.sum(adj_i_nc.to_numpy() > 0)
 
             # Prune (remove the edges between two non-connected clusters)
-            adj_sc[cluster_i, :][:, cluster_nc] = np.zeros_like(adj_sc[cluster_i, :][:, cluster_nc]).squeeze()
+            adj_sc.loc[cluster_i, cluster_nc] = np.zeros_like(adj_i_nc).squeeze()
 
     print(f'Successfully pruned {n_pruned} edges')
     return adj_sc

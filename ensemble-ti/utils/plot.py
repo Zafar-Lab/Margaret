@@ -314,5 +314,60 @@ def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pse
                 # Plot
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label='TS:' + str(i))
             axes.legend()
-            axes.title('Trend:' + genes[gene_idx])
+    plt.title(f'Trend: {genes[gene_idx]}')
     plt.show()
+
+
+def plot_connectivity_graph_with_gene_expressions(
+    ad, cluster_connectivities, gene, embedding_key='X_met_embedding', comm_key='metric_clusters',
+    magic_key='X_magic', mode='undirected', cmap='YlGn', figsize=(16, 12), node_size=400,
+    font_color='black', title=None, save_path=None, save_kwargs={}, offset=0, **kwargs
+):
+    try:
+        X_embedded = ad.obsm[embedding_key]
+    except KeyError:
+        raise Exception(f'Key {embedding_key} not found in {ad}')
+
+    try:
+        communities = ad.obs[comm_key]
+    except KeyError:
+        raise Exception(f'Key {comm_key} not found in {ad}')
+
+    try:
+        X_imputed = pd.DataFrame(ad.obsm[magic_key], index=ad.obs_names, columns=ad.var_names)
+    except KeyError:
+        print('MAGIC imputed data not found. Using raw counts instead')
+        X_imputed = ad.X
+
+    if gene not in ad.var_names:
+        raise ValueError(f'Gene: {gene} was not found.')
+
+    g, node_positions = compute_connectivity_graph(X_embedded, communities, cluster_connectivities, mode=mode)
+
+    # Compute cluster wise mean expression of the gene
+    X_gene = X_imputed[gene]
+    gene_exprs = []
+    for cluster_id in np.unique(communities):
+        ids = communities == cluster_id
+        mean_gene_expr = X_gene.loc[ids].mean()
+        gene_exprs.append(mean_gene_expr)
+
+    # Draw the graph
+    plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
+    plt.axis('off')
+    edge_weights = [offset + w for _, _, w in g.edges.data("weight")]
+    nx.draw_networkx(
+        g, pos=node_positions, cmap=cmap, node_color=gene_exprs,
+        font_color=font_color, node_size=node_size, width=edge_weights, **kwargs
+    )
+    # Setup color bar
+    vmin = np.min(gene_exprs)
+    vmax = np.max(gene_exprs)
+    normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
+    cax, _ = mp.colorbar.make_axes(plt.gca())
+    mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)

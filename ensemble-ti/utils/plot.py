@@ -1,5 +1,5 @@
 import math
-import matplotlib
+import matplotlib as mp
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -98,9 +98,9 @@ def plot_gene_expression(
             # Display the Colorbar
             vmin = np.min(gene_expression)
             vmax = np.max(gene_expression)
-            normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-            cax, _ = matplotlib.colorbar.make_axes(axes)
-            matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+            normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
+            cax, _ = mp.colorbar.make_axes(axes)
+            mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
 
     # Save plot
     if save_path is not None:
@@ -151,9 +151,9 @@ def plot_pseudotime(
     # Display the Colorbar
     vmin = np.min(pseudotime)
     vmax = np.max(pseudotime)
-    normalize = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-    cax, _ = matplotlib.colorbar.make_axes(plt.gca())
-    matplotlib.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+    normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
+    cax, _ = mp.colorbar.make_axes(plt.gca())
+    mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()

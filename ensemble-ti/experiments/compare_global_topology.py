@@ -98,7 +98,6 @@ def evaluate_metric_topology(
                 start_cell_ids = preprocessed_data.uns['start_id']
                 start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
                 start_cluster_ids = get_start_cell_cluster_id(preprocessed_data, start_cell_ids, communities)
-                connectivity = preprocessed_data.uns['metric_directed_connectivities']
                 un_connectivity = preprocessed_data.uns['metric_undirected_connectivities']
                 plot_connectivity_graph(
                     preprocessed_data.obsm['metric_viz_embedding'], communities, un_connectivity, mode='undirected',
@@ -106,6 +105,7 @@ def evaluate_metric_topology(
                 )
 
                 if metti_version == 'v1':
+                    connectivity = preprocessed_data.uns['metric_directed_connectivities']
                     plot_trajectory_graph(
                         preprocessed_data.obsm['metric_viz_embedding'], communities, connectivity, start_cluster_ids,
                         title=f'directed_{backend}_{resolution}', save_path=os.path.join(plot_path, 'directed.png')

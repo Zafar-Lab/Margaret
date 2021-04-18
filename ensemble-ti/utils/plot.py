@@ -314,7 +314,8 @@ def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pse
                 # Plot
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label='TS:' + str(i))
             axes.legend()
-    plt.title(f'Trend: {genes[gene_idx]}')
+            plt.title(f'Trend: {genes[gene_idx]}')
+            gene_idx += 1
     plt.show()
 
 

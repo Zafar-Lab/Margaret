@@ -11,8 +11,8 @@ from sklearn.neighbors import NearestNeighbors
 
 from models.ti.connectivity import compute_directed_cluster_connectivity, compute_undirected_cluster_connectivity
 from models.ti.graph import compute_gt_milestone_network, compute_connectivity_graph, compute_trajectory_graph, compute_trajectory_graph_v2
-from models.ti.pseudotime import compute_pseudotime
-from models.ti.pseudotime_v2 import compute_pseudotime
+from models.ti.pseudotime import compute_pseudotime as cp
+from models.ti.pseudotime_v2 import compute_pseudotime as cp2
 from train_metric import train_metric_learner
 from utils.plot import generate_plot_embeddings
 from utils.util import get_start_cell_cluster_id, determine_cell_clusters
@@ -37,8 +37,8 @@ def seed_everything(seed=0):
     return seed
 
 
-def run_metti(ad,
-    n_episodes=10, n_metric_epochs=10, use_rep='X_pca', code_size=10, c_backend='louvain', chkpt_save_path=os.getcwd(), random_state=0,
+def run_metti(
+    ad, n_episodes=10, n_metric_epochs=10, use_rep='X_pca', code_size=10, c_backend='louvain', chkpt_save_path=os.getcwd(), random_state=0,
     cluster_kwargs={}, neighbor_kwargs={}, trainer_kwargs={}, viz_method='umap', viz_kwargs={}, n_neighbors_ti=30, threshold=0.5, device='cuda'
 ):
     # Seed setting
@@ -95,7 +95,7 @@ def run_metti(ad,
     # Pseudotime computation
     print('\nComputing Pseudotime...')
     trajectory_graph = nx.to_numpy_array(ad.uns['metric_trajectory'])
-    pseudotime = compute_pseudotime(ad, start_cell_ids, adj_conn, adj_dist, trajectory_graph, comm_key='metric_clusters', data_key='metric_embedding')
+    pseudotime = cp(ad, start_cell_ids, adj_conn, adj_dist, trajectory_graph, comm_key='metric_clusters', data_key='metric_embedding')
 
 
 def run_metti_v2(
@@ -125,7 +125,7 @@ def run_metti_v2(
     )
 
     # TI
-    print('\nComputing trajectory graphs...')
+    print('\nComputing Connectivity graphs...')
     communities = ad.obs['metric_clusters'].to_numpy().astype(np.int)
     X = ad.obsm['metric_embedding']
 
@@ -150,7 +150,7 @@ def run_metti_v2(
     # Pseudotime computation
     print('\nComputing Pseudotime...')
     adj_cluster = nx.to_pandas_adjacency(g_undirected)
-    pseudotime = compute_pseudotime(ad, start_cell_ids, adj_dist, adj_cluster)
+    pseudotime = cp2(ad, start_cell_ids, adj_dist, adj_cluster)
 
     # Directed graph computation
     g_directed = compute_trajectory_graph_v2(pseudotime, adj_cluster, ad.obs['metric_clusters'])

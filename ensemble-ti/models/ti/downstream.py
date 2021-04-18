@@ -93,18 +93,15 @@ def compute_cluster_lineage_likelihoods(ad, adj_g, cluster_key='metric_clusters'
     return cluster_lineage_likelihoods
 
 
-def compute_cell_branch_probs(ad, adj_dist, cluster_lineages, cluster_key='metric_clusters', graph_key='metric_trajectory'):
+def compute_cell_branch_probs(ad, adj_g, adj_dist, cluster_lineages, cluster_key='metric_clusters'):
     communities = ad.obs[cluster_key]
     cluster_ids = np.unique(communities)
     n_clusters = len(cluster_ids)
     N = communities.shape[0]
 
     # Prune the distance graph
-    g = ad.uns[graph_key]
-    adj_g = nx.convert_matrix.to_numpy_array(g)
-    adj_dist = pd.DataFrame(adj_dist.todense(), index=ad.obs_names, columns=ad.obs_names)
+    adj_dist = pd.DataFrame(adj_dist, index=ad.obs_names, columns=ad.obs_names)
     adj_dist_pruned = prune_network_edges(communities, adj_dist, adj_g)
-    adj_dist_pruned = pd.DataFrame(adj_dist_pruned, index=communities.index, columns=communities.index)
 
     # Compute the cell to cluster connectivity
     cell_branch_probs = pd.DataFrame(np.zeros((N, n_clusters)), index=communities.index, columns=cluster_ids)

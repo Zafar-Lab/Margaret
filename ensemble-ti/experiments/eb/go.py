@@ -13,7 +13,7 @@ def generate_go_terms(
     ad, de_key='rank_genes_groups', clusters_key='metric_clusters', lfc_cutoff=1.0, pval_cutoff=0.05,
     n_top=500, go_clusters=None, save_dir=None, **kwargs
 ):
-    de_res = ad.uns['rank_genes_groups']
+    de_res = ad.uns[de_key]
     communities = ad.obs[clusters_key]
     cluster_ids = np.unique(communities)
     query_cluster_ids = cluster_ids if go_clusters is None else go_clusters

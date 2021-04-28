@@ -27,7 +27,7 @@ def plot_embeddings(X, figsize=(12, 8), save_path=None, save_kwargs={}, title=No
     plt.gca().set_axis_off()
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
-    plt.show()
+    plt.show()    
 
 
 @compute_runtime

@@ -1,3 +1,4 @@
+import mygene
 import numpy as np
 import pandas as pd
 import scipy.stats as ss
@@ -36,3 +37,38 @@ def compute_bulk_correlations(ad, bulk_expr_path, mapping_file_path, sc_gene_lis
         sc_expr_val = ad_df.loc[cell, common_genes]
         p.append(ss.pearsonr(common_bulk_expr_val, sc_expr_val)[0])
     return p
+
+
+def generate_mapping_file(bulk_expr_path, mapping_path):
+    bulk_df = pd.read_csv(bulk_expr_path)
+    mg = mygene.MyGeneInfo()
+    notfound = []
+    expr_dict = {}
+
+    # Create the Ensembl ID to rpkm value mapping (excluding the file headers)
+    for ensembl_gene_id, rpkm_val in zip(bulk_df['name'][1:], bulk_df['rpkm_1'][1:]):
+        expr_dict[ensembl_gene_id] = rpkm_val
+
+    # Get the gene IDs for Ensembl gene IDs
+    ensembl_gene_list = list(expr_dict.keys())
+    results = mg.querymany(ensembl_gene_list, scopes='ensembl.gene', fields='symbol')
+
+    queries = []
+    symbols = []
+    for result in results:
+        query = result['query']
+        symbol = result.get('symbol', None)
+        # If symbol for a query was not found, skip row
+        if symbol is None:
+            notfound.append(query)
+            continue
+        queries.append(query)
+        symbols.append(symbol)
+
+    # Create mapping file
+    df_ = pd.DataFrame(symbols, columns=['SymbolId'], index=queries)
+    df_.to_csv(mapping_path)
+
+    print('Mapping file generation complete. Generated file path: {mapping_path}.')
+    print('The symbol IDs for the following Ensembl Ids were not found: {notfound}')
+    return df_, notfound

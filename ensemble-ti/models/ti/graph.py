@@ -111,8 +111,9 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
         for c_idx in connected_c_idx:
             if (cluster_pseudotime.loc[c_idx, 't'] > cluster_pseudotime.loc[idx, 't']) and \
                 (adj_cluster.loc[c_idx, idx] != 0):
-                # The edge weight will be inversely proportional to the difference in psuedotimes
-                adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't'])
+                # The edge weight will be the contribution from the directed connectivities and difference of the pseudotimes
+                # adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't'])
+                adj.loc[idx, c_idx] = connectivity[idx, c_idx] + 1 / (1 + np.exp(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't']))
     
     # Normalize the directed adjacency matrix
     # We return the adjacency matrix as nx.Graph is not serializable

@@ -277,7 +277,7 @@ def plot_gt_milestone_network(
     )
 
 
-def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pseudotime', imputed_key='X_magic', nrows=1, figsize=None):
+def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pseudotime', imputed_key='X_magic', nrows=1, figsize=None, threshold=0.95):
     # NOTE: Code inspired from https://github.com/ShobiStassen/VIA/blob/e69a0776108a23e5ecc61f75a3fb672b323c4f32/VIA/core.py#L2114
     t_states = cell_branch_probs.columns
     pt = ad.obs[pseudotime_key]
@@ -295,7 +295,7 @@ def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pse
             gene_exp = imputed_data_df.loc[:, genes[gene_idx]]
             for i in t_states:
                 # Get the val set
-                loc_i = np.where(cell_branch_probs.loc[:, i] > 0.95)[0]
+                loc_i = np.where(cell_branch_probs.loc[:, i] > threshold)[0]
                 val_pt = pt[loc_i]
                 max_val_pt = max(val_pt)
 

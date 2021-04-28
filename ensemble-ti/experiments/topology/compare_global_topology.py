@@ -2,7 +2,7 @@ import csv
 import os
 import scanpy as sc
 
-from core import run_metti, run_paga, run_palantir
+from core import run_metti, run_paga, run_palantir, run_metti_v2
 from IPython.display import clear_output
 from metrics.ipsen import IpsenMikhailov
 from metrics.ordering import compute_ranking_correlation
@@ -13,7 +13,8 @@ from utils.plot import *
 
 def evaluate_metric_topology(
     dataset_file_path, results_dir=os.getcwd(), resolutions=[0.4, 0.6, 0.8, 1.0],
-    c_backends=['louvain', 'leiden'], threshold=0.5, dry_run=False, device='cuda'
+    c_backends=['louvain', 'leiden'], threshold=0.5, dry_run=False, device='cuda',
+    metti_version='v2'
 ):
     # Read the dataset file
     datasets = {}
@@ -66,11 +67,18 @@ def evaluate_metric_topology(
                 # Run method
                 n_episodes = 1 if dry_run else 10
                 n_metric_epochs = 1 if dry_run else 10
-                run_metti(
-                    preprocessed_data, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, chkpt_save_path=chkpt_save_path, random_state=0,
-                    cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
-                    trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold, device=device
-                )
+                if metti_version == 'v2':
+                    run_metti_v2(
+                        preprocessed_data, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, chkpt_save_path=chkpt_save_path, random_state=0,
+                        cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
+                        trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold, device=device
+                    )
+                else:
+                    run_metti(
+                        preprocessed_data, n_episodes=n_episodes, n_metric_epochs=n_metric_epochs, chkpt_save_path=chkpt_save_path, random_state=0,
+                        cluster_kwargs={'random_state': 0, 'resolution': resolution}, neighbor_kwargs={'random_state': 0, 'n_neighbors': 50},
+                        trainer_kwargs={'optimizer': 'SGD', 'lr': 0.01, 'batch_size': 32}, c_backend=backend, threshold=threshold, device=device
+                    )
 
                 # Plot embeddings
                 plot_path = os.path.join(dataset_path, backend, str(resolution), 'plots')
@@ -90,22 +98,35 @@ def evaluate_metric_topology(
                 start_cell_ids = preprocessed_data.uns['start_id']
                 start_cell_ids = [start_cell_ids] if isinstance(start_cell_ids, str) else list(start_cell_ids)
                 start_cluster_ids = get_start_cell_cluster_id(preprocessed_data, start_cell_ids, communities)
-                connectivity = preprocessed_data.uns['metric_directed_connectivities']
                 un_connectivity = preprocessed_data.uns['metric_undirected_connectivities']
                 plot_connectivity_graph(
                     preprocessed_data.obsm['metric_viz_embedding'], communities, un_connectivity, mode='undirected',
                     title=f'undirected_{backend}_{resolution}', save_path=os.path.join(plot_path, 'undirected.png')
                 )
-                plot_trajectory_graph(
-                    preprocessed_data.obsm['metric_viz_embedding'], communities, connectivity, start_cluster_ids,
-                    title=f'directed_{backend}_{resolution}', save_path=os.path.join(plot_path, 'directed.png')
-                )
 
-                # Plot pseudotime
-                plot_pseudotime(
-                    preprocessed_data, embedding_key='metric_viz_embedding', pseudotime_key='metric_pseudotime', cmap='plasma',
-                    title=f'pseudotime_{backend}_{resolution}', save_path=os.path.join(plot_path, 'pseudotime.png')
-                )
+                if metti_version == 'v1':
+                    connectivity = preprocessed_data.uns['metric_directed_connectivities']
+                    plot_trajectory_graph(
+                        preprocessed_data.obsm['metric_viz_embedding'], communities, connectivity, start_cluster_ids,
+                        title=f'directed_{backend}_{resolution}', save_path=os.path.join(plot_path, 'directed.png')
+                    )
+
+                    # Plot pseudotime
+                    plot_pseudotime(
+                        preprocessed_data, embedding_key='metric_viz_embedding', pseudotime_key='metric_pseudotime', cmap='plasma',
+                        title=f'pseudotime_{backend}_{resolution}', save_path=os.path.join(plot_path, 'pseudotime.png')
+                    )
+                else:
+                    plot_pseudotime(
+                        preprocessed_data, embedding_key='metric_viz_embedding', pseudotime_key='metric_pseudotime_v2', cmap='plasma',
+                        title=f'pseudotime_{backend}_{resolution}', save_path=os.path.join(plot_path, 'pseudotime.png')
+                    )
+
+                    plot_trajectory_graph_v2(
+                        preprocessed_data.obs['metric_pseudotime_v2'], nx.to_pandas_adjacency(preprocessed_data.uns['metric_undirected_graph']),
+                        preprocessed_data.obs['metric_clusters'], preprocessed_data.uns['metric_undirected_node_positions'],
+                        title=f'directed_{backend}_{resolution}', save_path=os.path.join(plot_path, 'directed.png')
+                    )
 
                 # Compute IM distance
                 im = IpsenMikhailov()
@@ -115,7 +136,8 @@ def evaluate_metric_topology(
 
                 # Compute pseudotime
                 gt_pseudotime = preprocessed_data.uns['timecourse'].reindex(preprocessed_data.obs_names)
-                res = compute_ranking_correlation(gt_pseudotime, preprocessed_data.obs['metric_pseudotime'])
+                pseudotime_key = 'metric_pseudotime' if metti_version == 'v1' else 'metric_pseudotime_v2'
+                res = compute_ranking_correlation(gt_pseudotime, preprocessed_data.obs[pseudotime_key])
                 r.loc[name, f'KT@{resolution}'] = res['kendall'][0]
                 r.loc[name, f'WKT@{resolution}'] = res['weighted_kendall'][0]
                 r.loc[name, f'SR@{resolution}'] = res['spearman'][0]

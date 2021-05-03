@@ -18,16 +18,39 @@ from utils.util import compute_runtime
 # TODO: In the plotting module, create a decorator to save the plots
 
 
-def plot_embeddings(X, figsize=(12, 8), save_path=None, save_kwargs={}, title=None, **kwargs):
+def plot_embeddings(X, figsize=(12, 8), save_path=None, title=None, show_legend=False, labels=None, legend_kwargs={}, save_kwargs={}, **kwargs):
     assert X.shape[-1] == 2
+
+    # Set figsize
     plt.figure(figsize=figsize)
+
+    # Set title (if set)
     if title is not None:
         plt.title(title)
-    plt.scatter(X[:, 0], X[:, 1], **kwargs)
+
+    # Plot
+    scatter = plt.scatter(X[:, 0], X[:, 1], **kwargs)
+
+    if show_legend:
+        if labels is None:
+            raise ValueError('labels must be provided when plotting legend')
+
+        # Create legend
+        legend = plt.gca().legend(*scatter.legend_elements(num=len(labels)), **legend_kwargs)
+
+        # Replace default labels with the provided labels
+        text = legend.get_texts()
+        assert len(text) == len(labels)
+
+        for t, label in zip(text, labels):
+            t.set_text(label)
+        plt.gca().add_artist(legend)
     plt.gca().set_axis_off()
+
+    # Save
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
-    plt.show()    
+    plt.show()
 
 
 @compute_runtime

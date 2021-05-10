@@ -1,6 +1,7 @@
 import mygene
 import numpy as np
 import pandas as pd
+import scipy
 import scipy.stats as ss
 
 from tqdm import tqdm
@@ -41,6 +42,9 @@ def compute_bulk_correlations(
         ad_ = ad.obsm[imputed_obsm_key]
     else:
         ad_ = ad.X
+        if isinstance(ad_, scipy.sparse.csr_matrix):
+            ad_ = ad_.todense()
+
     ad_df = pd.DataFrame(ad_, index=ad.obs_names, columns=ad.var_names)
     for cell in tqdm(ad.obs_names):
         sc_expr_val = ad_df.loc[cell, common_genes]
@@ -78,6 +82,8 @@ def compute_cluster_correlations(
         ad_ = ad.obsm[imputed_obsm_key]
     else:
         ad_ = ad.X
+        if isinstance(ad_, scipy.sparse.csr_matrix):
+            ad_ = ad_.todense()
 
     # Compute the mean gene expressions for the cells in the given clusters
     ad_df = pd.DataFrame(ad_, index=ad.obs_names, columns=ad.var_names)
@@ -92,7 +98,7 @@ def compute_cluster_correlations(
     mean_gene_expr = gene_expr.mean(axis=0)
     bulk_gene_expr = bulk_expr_vals.loc[common_genes]
     corr = ss.pearsonr(bulk_gene_expr, mean_gene_expr)[0]
-    return corr, common_genes, cell_ids
+    return corr, mean_gene_expr, bulk_gene_expr, common_genes, cell_ids
 
 
 def generate_mapping_file(bulk_expr_path, mapping_path):

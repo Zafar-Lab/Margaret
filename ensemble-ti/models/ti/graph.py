@@ -92,7 +92,7 @@ def compute_trajectory_graph(embeddings, communities, cluster_connectivities, st
 
 
 @compute_runtime
-def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
+def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities, d_connectivity):
     n_communities = np.unique(communities).shape[0]
     cluster_ids = np.unique(communities)
 
@@ -113,7 +113,7 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities):
                 (adj_cluster.loc[c_idx, idx] != 0):
                 # The edge weight will be the contribution from the directed connectivities and difference of the pseudotimes
                 # adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't'])
-                adj.loc[idx, c_idx] = connectivity[idx, c_idx] + 1 / (1 + np.exp(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't']))
+                adj.loc[idx, c_idx] = d_connectivity[idx, c_idx] + 1 / (1 + np.exp(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't']))
     
     # Normalize the directed adjacency matrix
     # We return the adjacency matrix as nx.Graph is not serializable

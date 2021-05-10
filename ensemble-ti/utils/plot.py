@@ -182,20 +182,14 @@ def plot_pseudotime(
     plt.show()
 
 
-def plot_graph(
-    G, node_positions=None, cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black',
-    title=None, save_path=None, save_kwargs={}, offset=0, **kwargs
-):
+def plot_graph(G, node_positions=None, figsize=(16, 12), title=None, save_path=None, save_kwargs={}, offset=0, **kwargs):
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:
         plt.title(title)
     plt.axis('off')
     edge_weights = [offset + w for _, _, w in g.edges.data("weight")]
-    nx.draw_networkx(
-        g, pos=node_positions, cmap=cmap, node_color=np.unique(communities),
-        font_color=font_color, node_size=node_size, width=edge_weights, **kwargs
-    )
+    nx.draw_networkx(g, pos=node_positions, width=edge_weights, **kwargs)
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
 
@@ -220,11 +214,11 @@ def plot_trajectory_graph(
 
 
 def plot_trajectory_graph_v2(
-    pseudotime, adj_cluster, communities, node_positions, cmap='YlGn', figsize=(16, 12),
+    pseudotime, adj_cluster, communities, d_connectivity, node_positions, cmap='YlGn', figsize=(16, 12),
     node_size=400, font_color='black', title=None, save_path=None, save_kwargs={},
     offset=0, **kwargs
 ):
-    adj_g = compute_trajectory_graph_v2(pseudotime, adj_cluster, communities)
+    adj_g = compute_trajectory_graph_v2(pseudotime, adj_cluster, communities, d_connectivity)
     g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
     # Draw the graph
     plt.figure(figsize=figsize)

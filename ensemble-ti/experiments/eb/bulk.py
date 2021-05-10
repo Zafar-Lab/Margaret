@@ -41,11 +41,11 @@ def compute_bulk_correlations(
         ad_ = ad.obsm[imputed_obsm_key]
     else:
         ad_ = ad.X
-    ad_df = pd.DataFrame(ad_, index=ad.var_names, columns=ad.obs_names)
+    ad_df = pd.DataFrame(ad_, index=ad.obs_names, columns=ad.var_names)
     for cell in tqdm(ad.obs_names):
         sc_expr_val = ad_df.loc[cell, common_genes]
         p.append(ss.pearsonr(common_bulk_expr_val, sc_expr_val)[0])
-    return p
+    return p, common_genes
 
 
 def compute_cluster_correlations(
@@ -92,7 +92,7 @@ def compute_cluster_correlations(
     mean_gene_expr = gene_expr.mean(axis=0)
     bulk_gene_expr = bulk_expr_vals.loc[common_genes]
     corr = ss.pearsonr(bulk_gene_expr, mean_gene_expr)[0]
-    return corr
+    return corr, common_genes, cell_ids
 
 
 def generate_mapping_file(bulk_expr_path, mapping_path):

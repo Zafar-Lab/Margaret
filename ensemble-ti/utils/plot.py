@@ -18,13 +18,36 @@ from utils.util import compute_runtime
 # TODO: In the plotting module, create a decorator to save the plots
 
 
-def plot_embeddings(X, figsize=(12, 8), save_path=None, save_kwargs={}, title=None, **kwargs):
+def plot_embeddings(X, figsize=(12, 8), save_path=None, title=None, show_legend=False, labels=None, legend_kwargs={}, save_kwargs={}, **kwargs):
     assert X.shape[-1] == 2
+
+    # Set figsize
     plt.figure(figsize=figsize)
+
+    # Set title (if set)
     if title is not None:
         plt.title(title)
-    plt.scatter(X[:, 0], X[:, 1], **kwargs)
+
+    # Plot
+    scatter = plt.scatter(X[:, 0], X[:, 1], **kwargs)
+
+    if show_legend:
+        if labels is None:
+            raise ValueError('labels must be provided when plotting legend')
+
+        # Create legend
+        legend = plt.gca().legend(*scatter.legend_elements(num=len(labels)), **legend_kwargs)
+
+        # Replace default labels with the provided labels
+        text = legend.get_texts()
+        assert len(text) == len(labels)
+
+        for t, label in zip(text, labels):
+            t.set_text(label)
+        plt.gca().add_artist(legend)
     plt.gca().set_axis_off()
+
+    # Save
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
@@ -159,20 +182,14 @@ def plot_pseudotime(
     plt.show()
 
 
-def plot_graph(
-    G, node_positions=None, cmap='YlGn', figsize=(16, 12), node_size=400, font_color='black',
-    title=None, save_path=None, save_kwargs={}, offset=0, **kwargs
-):
+def plot_graph(G, node_positions=None, figsize=(16, 12), title=None, save_path=None, save_kwargs={}, offset=0, **kwargs):
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:
         plt.title(title)
     plt.axis('off')
     edge_weights = [offset + w for _, _, w in g.edges.data("weight")]
-    nx.draw_networkx(
-        g, pos=node_positions, cmap=cmap, node_color=np.unique(communities),
-        font_color=font_color, node_size=node_size, width=edge_weights, **kwargs
-    )
+    nx.draw_networkx(g, pos=node_positions, width=edge_weights, **kwargs)
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
 
@@ -197,11 +214,11 @@ def plot_trajectory_graph(
 
 
 def plot_trajectory_graph_v2(
-    pseudotime, adj_cluster, communities, node_positions, cmap='YlGn', figsize=(16, 12),
+    pseudotime, adj_cluster, communities, d_connectivity, node_positions, cmap='YlGn', figsize=(16, 12),
     node_size=400, font_color='black', title=None, save_path=None, save_kwargs={},
     offset=0, **kwargs
 ):
-    adj_g = compute_trajectory_graph_v2(pseudotime, adj_cluster, communities)
+    adj_g = compute_trajectory_graph_v2(pseudotime, adj_cluster, communities, d_connectivity)
     g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
     # Draw the graph
     plt.figure(figsize=figsize)
@@ -277,7 +294,7 @@ def plot_gt_milestone_network(
     )
 
 
-def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pseudotime', imputed_key='X_magic', nrows=1, figsize=None):
+def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pseudotime', imputed_key='X_magic', nrows=1, figsize=None, threshold=0.95):
     # NOTE: Code inspired from https://github.com/ShobiStassen/VIA/blob/e69a0776108a23e5ecc61f75a3fb672b323c4f32/VIA/core.py#L2114
     t_states = cell_branch_probs.columns
     pt = ad.obs[pseudotime_key]
@@ -295,7 +312,7 @@ def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pse
             gene_exp = imputed_data_df.loc[:, genes[gene_idx]]
             for i in t_states:
                 # Get the val set
-                loc_i = np.where(cell_branch_probs.loc[:, i] > 0.95)[0]
+                loc_i = np.where(cell_branch_probs.loc[:, i] > threshold)[0]
                 val_pt = pt[loc_i]
                 max_val_pt = max(val_pt)
 

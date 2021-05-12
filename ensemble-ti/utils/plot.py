@@ -166,11 +166,11 @@ def plot_clusters(
     adata,
     cluster_key="communities",
     embedding_key="X_embedding",
-    cmap=None,
     figsize=(8, 8),
     title=None,
     save_path=None,
-    marker_size=1,
+    color_map=None,
+    legend_kwargs={},
     save_kwargs={},
     **kwargs,
 ):
@@ -183,22 +183,25 @@ def plot_clusters(
     if title is not None:
         plt.title(title)
     axes = plt.gca()
-    scatter = axes.scatter(
-        embeddings[:, 0],
-        embeddings[:, 1],
-        c=communities,
-        s=marker_size,
-        cmap=cmap,
-        **kwargs,
-    )
-    legend1 = axes.legend(
-        *scatter.legend_elements(num=len(np.unique(communities))),
-        loc="center left",
-        title="Cluster Id",
-        bbox_to_anchor=(1, 0.5),
-    )
-    axes.add_artist(legend1)
+
+    for cluster_id in np.unique(communities):
+        ids = communities == cluster_id
+        c = None if color_map is None else color_map[cluster_id]
+        axes.scatter(
+            embeddings[ids, 0],
+            embeddings[ids, 1],
+            c=c,
+            label=cluster_id,
+            **kwargs,
+        )
+
     axes.set_axis_off()
+    legend = plt.legend(**legend_kwargs)
+
+    # Hack to change the size of the markers in the legend
+    for h in legend.legendHandles:
+        h.set_sizes([18.0])
+
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
@@ -508,11 +511,11 @@ def plot_lineage_trends(
                 # Plot
                 ts_label = ts_map[i] if ts_map is not None else i
                 if color_map is not None:
-                    kwargs['color'] = color_map[i]
+                    kwargs["color"] = color_map[i]
 
                 # Remove the right and top axes
-                axes.spines['right'].set_visible(False)
-                axes.spines['top'].set_visible(False)
+                axes.spines["right"].set_visible(False)
+                axes.spines["top"].set_visible(False)
                 axes.set_ylim([0, 1])
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label=ts_label, **kwargs)
             axes.legend()

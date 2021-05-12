@@ -447,8 +447,10 @@ def plot_lineage_trends(
     figsize=None,
     norm=True,
     threshold=0.95,
+    title=None,
     save_path=None,
     ts_map=None,
+    color_map=None,
     save_kwargs={},
     gam_kwargs={},
     **kwargs,
@@ -505,9 +507,17 @@ def plot_lineage_trends(
 
                 # Plot
                 ts_label = ts_map[i] if ts_map is not None else i
+                if color_map is not None:
+                    kwargs['color'] = color_map[i]
+
+                # Remove the right and top axes
+                axes.spines['right'].set_visible(False)
+                axes.spines['top'].set_visible(False)
+                axes.set_ylim([0, 1])
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label=ts_label, **kwargs)
             axes.legend()
-            plt.title(f"Trend: {genes[gene_idx]}")
+            if title is not None:
+                plt.title(f"{title}: {genes[gene_idx]}")
             gene_idx += 1
 
     if save_path is not None:

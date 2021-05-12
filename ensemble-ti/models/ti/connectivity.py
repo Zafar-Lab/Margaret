@@ -51,12 +51,16 @@ def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
             e_sym_random = (e_i * n_j + e_j * n_i) / (N - 1)
 
             # Compute the cluster connectivity measure
-            std_sym = (e_i * n_j * (N - n_j - 1) + e_j * n_i * (N - n_i - 1))/(N - 1)**2
+            std_sym = (e_i * n_j * (N - n_j - 1) + e_j * n_i * (N - n_i - 1)) / (
+                N - 1
+            ) ** 2
             undirected_z_score[i][j] = (e_sym - e_sym_random) / std_sym
 
             # Only add non-spurious edges based on a threshold
             if undirected_z_score[i][j] >= threshold:
-                undirected_cluster_connectivity[i][j] = (e_sym - e_sym_random) / (e_i + e_j - e_sym_random)
+                undirected_cluster_connectivity[i][j] = (e_sym - e_sym_random) / (
+                    e_i + e_j - e_sym_random
+                )
     return undirected_cluster_connectivity, undirected_z_score
 
 
@@ -99,17 +103,21 @@ def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
             e_ij_random = (e_i * n_j) / (N - 1)
 
             # Compute the cluster connectivity measure
-            std_j = e_i * n_j * (N - n_j - 1)/(N - 1)**2
-            directed_z_score[i][j] = (e_ij - e_ij_random)/std_j
+            std_j = e_i * n_j * (N - n_j - 1) / (N - 1) ** 2
+            directed_z_score[i][j] = (e_ij - e_ij_random) / std_j
 
             # Only add non-spurious edges with 95% CI
             if directed_z_score[i][j] >= threshold:
-                directed_cluster_connectivity[i][j] = (e_ij - e_ij_random) / (e_i - e_ij_random)
+                directed_cluster_connectivity[i][j] = (e_ij - e_ij_random) / (
+                    e_i - e_ij_random
+                )
     return directed_cluster_connectivity, directed_z_score
 
 
 @compute_runtime
-def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='undirected'):
+def compute_cluster_connectivity_katz(
+    communities, adj, S, threshold=0.1, mode="undirected"
+):
     N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
 
@@ -136,8 +144,8 @@ def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='
     K = K / np.sum(K, axis=1)[:, np.newaxis]
 
     # Make the connectivity measure symmetric for the undirected case
-    if mode == 'undirected':
-        K = (K + K.T)/2
+    if mode == "undirected":
+        K = (K + K.T) / 2
         K[K < threshold] = 0
     else:
         K[K < threshold] = 0
@@ -147,7 +155,7 @@ def compute_cluster_connectivity_katz(communities, adj, S, threshold=0.1, mode='
 
 
 @compute_runtime
-def compute_katz_index(adata, adj, beta=0.01, obsm_key='katz_scores'):
+def compute_katz_index(adata, adj, beta=0.01, obsm_key="katz_scores"):
     N = adata.X.shape[0]
     S = np.linalg.inv(np.eye(N) - beta * adj) - np.eye(N)
     adata.obsm[obsm_key] = S

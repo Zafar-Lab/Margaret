@@ -34,7 +34,6 @@ def ensure_undirected(G):
     return G
 
 
-
 def undirected(func):
     """
     Decorator applying ``ensure_undirected()`` to all ``nx.Graph``-subclassed
@@ -50,7 +49,6 @@ def undirected(func):
         return func(*args, **kwargs)
 
     return wrapper
-
 
 
 def ensure_unweighted(G):
@@ -80,7 +78,6 @@ def ensure_unweighted(G):
             return H
 
     return G
-
 
 
 def unweighted(func):
@@ -121,7 +118,6 @@ class BaseDistance:
     def __call__(self, *args, **kwargs):
         return self.dist(*args, **kwargs)
 
-
     def dist(self, G1, G2):
         """Compute distance between two graphs.
 
@@ -140,7 +136,7 @@ class BaseDistance:
 
         """
         dist = -1  # compute the distance
-        self.results['dist'] = dist  # store dist in self.results
+        self.results["dist"] = dist  # store dist in self.results
         # self.results[..] = ..     # also store other values if needed
         return dist  # return only one value!
 
@@ -184,14 +180,15 @@ class IpsenMikhailov(BaseDistance):
         # get the adjacency matrices
         adj1 = nx.to_numpy_array(G1)
         adj2 = nx.to_numpy_array(G2)
-        self.results['adjacency_matrices'] = adj1, adj2
+        self.results["adjacency_matrices"] = adj1, adj2
 
         # get the IM distance
         dist = _im_distance(adj1, adj2, hwhm)
 
-        self.results['dist'] = dist
+        self.results["dist"] = dist
 
         return dist
+
 
 def _im_distance(adj1, adj2, hwhm):
     """Computes the Ipsen-Mikhailov distance for two symmetric adjacency
@@ -239,7 +236,7 @@ def _im_distance(adj1, adj2, hwhm):
     return np.sqrt(quad(func, 0, np.inf, limit=100)[0])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     g1 = nx.fast_gnp_random_graph(10, 0.6)
     g2 = nx.fast_gnp_random_graph(5, 0.4)
     im = IpsenMikhailov()

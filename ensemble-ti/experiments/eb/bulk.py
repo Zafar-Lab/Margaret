@@ -1,5 +1,4 @@
 import mygene
-import numpy as np
 import pandas as pd
 import scipy
 import scipy.stats as ss
@@ -8,28 +7,35 @@ from tqdm import tqdm
 
 
 def compute_bulk_correlations(
-    ad, bulk_expr_path, mapping_file_path, imputed_obsm_key=None, rpkm_prefix='900', tf_list=None
+    ad,
+    bulk_expr_path,
+    mapping_file_path,
+    imputed_obsm_key=None,
+    rpkm_prefix="900",
+    tf_list=None,
 ):
     ad.var_names_make_unique()
 
     # Read the mapping file which maps Ensembl gene IDs to symbol IDs
     mapping_df = pd.read_csv(mapping_file_path)
-    mapping_df.index = mapping_df['EnsemblId']
-    mapping_df = mapping_df.drop_duplicates(subset='SymbolId')
+    mapping_df.index = mapping_df["EnsemblId"]
+    mapping_df = mapping_df.drop_duplicates(subset="SymbolId")
 
     # Read the bulk-expression data and set index
     bulk_expr_df = pd.read_csv(bulk_expr_path)
-    bulk_expr_df.index = bulk_expr_df['name']
+    bulk_expr_df.index = bulk_expr_df["name"]
 
     # Get the bulk expression values and gene IDs for all mapped genes
-    bulk_expr_vals = bulk_expr_df.loc[mapping_df.index][f'rpkm_{rpkm_prefix}']
-    bulk_expr_genes = mapping_df.loc[mapping_df.index]['SymbolId']
+    bulk_expr_vals = bulk_expr_df.loc[mapping_df.index][f"rpkm_{rpkm_prefix}"]
+    bulk_expr_genes = mapping_df.loc[mapping_df.index]["SymbolId"]
     bulk_expr_vals.index = bulk_expr_genes
 
     # Compute the set of genes which are common in bulk and scRNA data
     sc_expr_genes = ad.var_names
     if tf_list is not None:
-        common_genes = list(set(sc_expr_genes).intersection(set(bulk_expr_genes)).intersection(tf_list))
+        common_genes = list(
+            set(sc_expr_genes).intersection(set(bulk_expr_genes)).intersection(tf_list)
+        )
     else:
         common_genes = list(set(sc_expr_genes).intersection(set(bulk_expr_genes)))
 
@@ -53,28 +59,37 @@ def compute_bulk_correlations(
 
 
 def compute_cluster_correlations(
-    ad, cluster_ids, cluster_key, bulk_expr_path, mapping_file_path, imputed_obsm_key=None, rpkm_prefix='900', tf_list=None
+    ad,
+    cluster_ids,
+    cluster_key,
+    bulk_expr_path,
+    mapping_file_path,
+    imputed_obsm_key=None,
+    rpkm_prefix="900",
+    tf_list=None,
 ):
     ad.var_names_make_unique()
 
     # Read the mapping file which maps Ensembl gene IDs to symbol IDs
     mapping_df = pd.read_csv(mapping_file_path)
-    mapping_df.index = mapping_df['EnsemblId']
-    mapping_df = mapping_df.drop_duplicates(subset='SymbolId')
+    mapping_df.index = mapping_df["EnsemblId"]
+    mapping_df = mapping_df.drop_duplicates(subset="SymbolId")
 
     # Read the bulk-expression data and set index
     bulk_expr_df = pd.read_csv(bulk_expr_path)
-    bulk_expr_df.index = bulk_expr_df['name']
+    bulk_expr_df.index = bulk_expr_df["name"]
 
     # Get the bulk expression values and gene IDs for all mapped genes
-    bulk_expr_vals = bulk_expr_df.loc[mapping_df.index][f'rpkm_{rpkm_prefix}']
-    bulk_expr_genes = mapping_df.loc[mapping_df.index]['SymbolId']
+    bulk_expr_vals = bulk_expr_df.loc[mapping_df.index][f"rpkm_{rpkm_prefix}"]
+    bulk_expr_genes = mapping_df.loc[mapping_df.index]["SymbolId"]
     bulk_expr_vals.index = bulk_expr_genes
 
     # Compute the set of genes which are common in bulk and scRNA data
     sc_expr_genes = ad.var_names
     if tf_list is not None:
-        common_genes = list(set(sc_expr_genes).intersection(set(bulk_expr_genes)).intersection(tf_list))
+        common_genes = list(
+            set(sc_expr_genes).intersection(set(bulk_expr_genes)).intersection(tf_list)
+        )
     else:
         common_genes = list(set(sc_expr_genes).intersection(set(bulk_expr_genes)))
 
@@ -108,18 +123,18 @@ def generate_mapping_file(bulk_expr_path, mapping_path):
     expr_dict = {}
 
     # Create the Ensembl ID to rpkm value mapping (excluding the file headers)
-    for ensembl_gene_id, rpkm_val in zip(bulk_df['name'][1:], bulk_df['rpkm_1'][1:]):
+    for ensembl_gene_id, rpkm_val in zip(bulk_df["name"][1:], bulk_df["rpkm_1"][1:]):
         expr_dict[ensembl_gene_id] = rpkm_val
 
     # Get the gene IDs for Ensembl gene IDs
     ensembl_gene_list = list(expr_dict.keys())
-    results = mg.querymany(ensembl_gene_list, scopes='ensembl.gene', fields='symbol')
+    results = mg.querymany(ensembl_gene_list, scopes="ensembl.gene", fields="symbol")
 
     queries = []
     symbols = []
     for result in results:
-        query = result['query']
-        symbol = result.get('symbol', None)
+        query = result["query"]
+        symbol = result.get("symbol", None)
         # If symbol for a query was not found, skip row
         if symbol is None:
             notfound.append(query)
@@ -128,9 +143,9 @@ def generate_mapping_file(bulk_expr_path, mapping_path):
         symbols.append(symbol)
 
     # Create mapping file
-    df_ = pd.DataFrame(symbols, columns=['SymbolId'], index=queries)
+    df_ = pd.DataFrame(symbols, columns=["SymbolId"], index=queries)
     df_.to_csv(mapping_path)
 
-    print('Mapping file generation complete. Generated file path: {mapping_path}.')
-    print('The symbol IDs for the following Ensembl Ids were not found: {notfound}')
+    print(f"Mapping file generation complete. Generated file path: {mapping_path}.")
+    print(f"The symbol IDs for the following Ensembl Ids were not found: {notfound}")
     return df_, notfound

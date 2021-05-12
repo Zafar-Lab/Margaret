@@ -5,16 +5,16 @@ import torch.nn as nn
 
 
 class VAELoss(nn.Module):
-    def __init__(self, reduction='mean', alpha=1.0, use_bce=True):
+    def __init__(self, reduction="mean", alpha=1.0, use_bce=True):
         super(VAELoss, self).__init__()
-        if reduction not in ['mean', 'sum']:
-            raise ValueError('Valid values for the reduction param are `mean`, `sum`')
+        if reduction not in ["mean", "sum"]:
+            raise ValueError("Valid values for the reduction param are `mean`, `sum`")
         self.alpha = alpha
         self.use_bce = use_bce
         self.reduction = reduction
-        self.mse = nn.MSELoss(reduction='mean')
-        self.bce = nn.BCELoss(reduction='mean')
-    
+        self.mse = nn.MSELoss(reduction="mean")
+        self.bce = nn.BCELoss(reduction="mean")
+
     def forward(self, x, decoder_out, mu, logvar):
         # Reconstruction Loss:
         # TODO: Try out the bce loss for reconstruction
@@ -24,7 +24,7 @@ class VAELoss(nn.Module):
             reconstruction_loss = self.mse(decoder_out, x)
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         loss = reconstruction_loss + self.alpha * kl_loss
-        if self.reduction == 'mean':
+        if self.reduction == "mean":
             return torch.mean(loss)
         else:
             return loss
@@ -55,8 +55,12 @@ class OnlineTripletLoss(nn.Module):
         if embeddings.is_cuda:
             triplets = triplets.cuda()
 
-        ap_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1)  # .pow(.5)
-        an_distances = (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1)  # .pow(.5)
+        ap_distances = (
+            (embeddings[triplets[:, 0]] - embeddings[triplets[:, 1]]).pow(2).sum(1)
+        )  # .pow(.5)
+        an_distances = (
+            (embeddings[triplets[:, 0]] - embeddings[triplets[:, 2]]).pow(2).sum(1)
+        )  # .pow(.5)
         losses = F.relu(ap_distances - an_distances + self.margin)
 
         return losses.mean(), len(triplets)

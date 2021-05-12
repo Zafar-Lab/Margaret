@@ -7,7 +7,7 @@ import pandas as pd
 import phate
 import pygam as pg
 import umap
- 
+
 from matplotlib import cm
 from sklearn.manifold import TSNE
 
@@ -89,7 +89,7 @@ def plot_gene_expression(
     except KeyError:
         print('MAGIC imputed data not found. Using raw counts instead')
         X_imputed = adata.X
-    
+
     assert X_embedded.shape[-1] == 2
     cmap = cm.Spectral_r if cmap is None else cmap
     raw_data_df = adata.to_df()
@@ -294,22 +294,48 @@ def plot_gt_milestone_network(
     )
 
 
-def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pseudotime', imputed_key='X_magic', nrows=1, figsize=None, threshold=0.95):
-    # NOTE: Code inspired from https://github.com/ShobiStassen/VIA/blob/e69a0776108a23e5ecc61f75a3fb672b323c4f32/VIA/core.py#L2114
+def plot_lineage_trends(
+    ad,
+    cell_branch_probs,
+    genes,
+    pseudotime_key='metric_pseudotime',
+    imputed_key=None,
+    nrows=1,
+    figsize=None,
+    norm=True,
+    threshold=0.95,
+    save_path=None,
+    ts_map=None,
+    save_kwargs={},
+    gam_kwargs={},
+    **kwargs
+):
+    # NOTE: Code inspired from https://github.com/ShobiStassen/VIA
     t_states = cell_branch_probs.columns
     pt = ad.obs[pseudotime_key]
-    imputed_data_df = pd.DataFrame(ad.obsm[imputed_key], columns=ad.var_names, index=ad.obs_names)
 
+    data_ = ad.X
+    if imputed_key is not None:
+        data_ = ad.obsm[imputed_key]
+
+    if isinstance(data_, scipy.sparse.csr_matrix):
+        data_ = data_.todense()
+
+    if norm:
+        # Min-max normalization
+        data_ = (data_ - np.min(data_, axis=0))/(np.max(data_, axis=0) - np.min(data_, axis=0))
+
+    data_df = pd.DataFrame(data_, columns=ad.var_names, index=ad.obs_names)
     ncols = math.ceil(len(genes) / nrows)
     gs = plt.GridSpec(nrows=nrows, ncols=ncols)
-    fig = plt.figure(figsize=figsize)
+    plt.figure(figsize=figsize)
     gene_idx = 0
 
     # Compute lineage expression trends for each gene
     for row_idx in range(nrows):
         for col_idx in range(ncols):
             axes = plt.subplot(gs[row_idx, col_idx])
-            gene_exp = imputed_data_df.loc[:, genes[gene_idx]]
+            gene_exp = data_df.loc[:, genes[gene_idx]]
             for i in t_states:
                 # Get the val set
                 loc_i = np.where(cell_branch_probs.loc[:, i] > threshold)[0]
@@ -317,22 +343,26 @@ def plot_lineage_trends(ad, cell_branch_probs, genes, pseudotime_key='metric_pse
                 max_val_pt = max(val_pt)
 
                 # Fit GAM
-                loc_i_bp = np.where(cell_branch_probs.loc[:, i] > 0.000)[0]
+                loc_i_bp = np.where(cell_branch_probs.loc[:, i] > 0)[0]
                 x = np.asarray(pt)[loc_i_bp].reshape(-1, 1)
                 y = np.asarray(gene_exp)[loc_i_bp].reshape(-1, 1)
                 weights = np.asarray(cell_branch_probs.loc[:, i])[loc_i_bp].reshape(-1, 1)
-                geneGAM = pg.LinearGAM(n_splines=10, spline_order=4, lam=10).fit(x, y, weights=weights)
-                
+                geneGAM = pg.LinearGAM(n_splines=10, spline_order=4, lam=10, **gam_kwargs).fit(x, y, weights=weights)
+
                 # Eval GAM
                 nx_spacing = 100
                 xval = np.linspace(0, max_val_pt, nx_spacing * 2)
                 yg = geneGAM.predict(X=xval)
 
                 # Plot
-                axes.plot(xval, yg, linewidth=3.5, zorder=3, label='TS:' + str(i))
+                ts_label = ts_map[i] if ts_map is not None else i
+                axes.plot(xval, yg, linewidth=3.5, zorder=3, label=ts_label, **kwargs)
             axes.legend()
             plt.title(f'Trend: {genes[gene_idx]}')
             gene_idx += 1
+
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
     plt.show()
 
 
@@ -389,3 +419,4 @@ def plot_connectivity_graph_with_gene_expressions(
 
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
+    plt.show()

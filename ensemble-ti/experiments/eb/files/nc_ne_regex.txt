@@ -10,6 +10,9 @@ muscle
 dendrite
 dendritic 
 photoreceptor
+eye
+visual
+camera
 cerebellum
 axon
 nerve
@@ -24,3 +27,4 @@ cerebral
 cortex
 limbic
 retina
+hypothalamus

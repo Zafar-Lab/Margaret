@@ -50,3 +50,26 @@ def generate_go_terms(
             save_path = os.path.join(save_dir, f"GO_{idx}.csv")
             go_df.to_csv(save_path, index=False)
             print(f'GO terms for cluster: {idx} written at: {save_path}')
+
+
+def filter_go_terms(terms_file_path, pat_file_path):
+    # Read patterns and strip newline
+    patterns = []
+    with open(pat_file_path, 'r') as fp:
+        patterns = fp.readlines()
+    patterns = [p.strip('\n') for p in patterns]
+
+    # Read GO terms
+    go_df = pd.read_csv(terms_file_path)
+    go_df.index = go_df['native']
+    index = go_df.index
+    name = go_df['name']
+
+    # Filter
+    unique_ids = set()
+    for pat in patterns:
+        inds = index[name.str.match(pat)]
+        unique_ids = unique_ids.union(set(inds))
+
+    filtered = go_df.loc[unique_ids]
+    return filtered, list(unique_ids)

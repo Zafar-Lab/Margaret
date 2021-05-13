@@ -98,6 +98,9 @@ def plot_gene_expression(
     obsm_key="X_embedded",
     save_kwargs={},
     save_path=None,
+    cb_kwargs={},
+    norm=False,
+    show_title=False,
     **kwargs,
 ):
     # BUG: Currently displays the colormap for
@@ -130,14 +133,24 @@ def plot_gene_expression(
     net_genes = list(set(genes) - set(excluded_genes))
     ncols = math.ceil(len(net_genes) / nrows)
     gs = plt.GridSpec(nrows=nrows, ncols=ncols)
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
     gene_index = 0
     for row_idx in range(nrows):
         for col_idx in range(ncols):
-            gene_name = net_genes[gene_index]
+            gene_name = genes[gene_index]
+            if gene_name not in net_genes:
+                gene_index = gene_index + 1
+                continue
+            # gene_name = net_genes[gene_index]
             gene_expression = imputed_data_df[gene_name].to_numpy()
+
+            if norm:
+                gene_expression = (gene_expression - np.min(gene_expression)) / (
+                    np.max(gene_expression) - np.min(gene_expression)
+                )
+
             axes = plt.subplot(gs[row_idx, col_idx])
-            axes.scatter(
+            sc = axes.scatter(
                 X_embedded[:, 0],
                 X_embedded[:, 1],
                 s=marker_size,
@@ -145,16 +158,16 @@ def plot_gene_expression(
                 cmap=cmap,
                 **kwargs,
             )
-            axes.set_title(gene_name)
+            if show_title:
+                axes.set_title(gene_name)
             axes.set_axis_off()
             gene_index = gene_index + 1
 
-            # Display the Colorbar
-            vmin = np.min(gene_expression)
-            vmax = np.max(gene_expression)
-            normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
-            cax, _ = mp.colorbar.make_axes(axes)
-            mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+            # Colorbar
+            # TODO: Adjust the position of the colorbar
+            cb = plt.colorbar(sc, ax=axes, **cb_kwargs)
+
+    fig.tight_layout()
 
     # Save plot
     if save_path is not None:

@@ -28,3 +28,7 @@ cortex
 limbic
 retina
 hypothalamus
+telencephalon
+muscle
+skeletal
+fundus

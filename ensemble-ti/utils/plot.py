@@ -98,6 +98,9 @@ def plot_gene_expression(
     obsm_key="X_embedded",
     save_kwargs={},
     save_path=None,
+    cb_kwargs={},
+    norm=False,
+    show_title=False,
     **kwargs,
 ):
     # BUG: Currently displays the colormap for
@@ -130,14 +133,24 @@ def plot_gene_expression(
     net_genes = list(set(genes) - set(excluded_genes))
     ncols = math.ceil(len(net_genes) / nrows)
     gs = plt.GridSpec(nrows=nrows, ncols=ncols)
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
     gene_index = 0
     for row_idx in range(nrows):
         for col_idx in range(ncols):
-            gene_name = net_genes[gene_index]
+            gene_name = genes[gene_index]
+            if gene_name not in net_genes:
+                gene_index = gene_index + 1
+                continue
+            # gene_name = net_genes[gene_index]
             gene_expression = imputed_data_df[gene_name].to_numpy()
+
+            if norm:
+                gene_expression = (gene_expression - np.min(gene_expression)) / (
+                    np.max(gene_expression) - np.min(gene_expression)
+                )
+
             axes = plt.subplot(gs[row_idx, col_idx])
-            axes.scatter(
+            sc = axes.scatter(
                 X_embedded[:, 0],
                 X_embedded[:, 1],
                 s=marker_size,
@@ -145,16 +158,16 @@ def plot_gene_expression(
                 cmap=cmap,
                 **kwargs,
             )
-            axes.set_title(gene_name)
+            if show_title:
+                axes.set_title(gene_name)
             axes.set_axis_off()
             gene_index = gene_index + 1
 
-            # Display the Colorbar
-            vmin = np.min(gene_expression)
-            vmax = np.max(gene_expression)
-            normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
-            cax, _ = mp.colorbar.make_axes(axes)
-            mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
+            # Colorbar
+            # TODO: Adjust the position of the colorbar
+            cb = plt.colorbar(sc, ax=axes, **cb_kwargs)
+
+    fig.tight_layout()
 
     # Save plot
     if save_path is not None:
@@ -166,11 +179,11 @@ def plot_clusters(
     adata,
     cluster_key="communities",
     embedding_key="X_embedding",
-    cmap=None,
     figsize=(8, 8),
     title=None,
     save_path=None,
-    marker_size=1,
+    color_map=None,
+    legend_kwargs={},
     save_kwargs={},
     **kwargs,
 ):
@@ -183,22 +196,25 @@ def plot_clusters(
     if title is not None:
         plt.title(title)
     axes = plt.gca()
-    scatter = axes.scatter(
-        embeddings[:, 0],
-        embeddings[:, 1],
-        c=communities,
-        s=marker_size,
-        cmap=cmap,
-        **kwargs,
-    )
-    legend1 = axes.legend(
-        *scatter.legend_elements(num=len(np.unique(communities))),
-        loc="center left",
-        title="Cluster Id",
-        bbox_to_anchor=(1, 0.5),
-    )
-    axes.add_artist(legend1)
+
+    for cluster_id in np.unique(communities):
+        ids = communities == cluster_id
+        c = None if color_map is None else color_map[cluster_id]
+        axes.scatter(
+            embeddings[ids, 0],
+            embeddings[ids, 1],
+            c=c,
+            label=cluster_id,
+            **kwargs,
+        )
+
     axes.set_axis_off()
+    legend = plt.legend(**legend_kwargs)
+
+    # Hack to change the size of the markers in the legend
+    for h in legend.legendHandles:
+        h.set_sizes([18.0])
+
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
@@ -447,8 +463,10 @@ def plot_lineage_trends(
     figsize=None,
     norm=True,
     threshold=0.95,
+    title=None,
     save_path=None,
     ts_map=None,
+    color_map=None,
     save_kwargs={},
     gam_kwargs={},
     **kwargs,
@@ -505,9 +523,17 @@ def plot_lineage_trends(
 
                 # Plot
                 ts_label = ts_map[i] if ts_map is not None else i
+                if color_map is not None:
+                    kwargs["color"] = color_map[i]
+
+                # Remove the right and top axes
+                axes.spines["right"].set_visible(False)
+                axes.spines["top"].set_visible(False)
+                axes.set_ylim([0, 1])
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label=ts_label, **kwargs)
             axes.legend()
-            plt.title(f"Trend: {genes[gene_idx]}")
+            if title is not None:
+                plt.title(f"{title}: {genes[gene_idx]}")
             gene_idx += 1
 
     if save_path is not None:

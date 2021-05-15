@@ -1,0 +1,10 @@
+epithelial
+epidermal
+epidermis
+epithelium
+apicolateral
+basolateral
+KLF3
+skin
+corni
+myogenin

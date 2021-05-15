@@ -1,12 +1,19 @@
 import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import re
+import scanpy as sc
 
 from gprofiler import GProfiler
 
 
 # Create a GOProfiler object
 gp = GProfiler(return_dataframe=True)
+
+
+def transform_pval(p):
+    return np.sqrt(-np.log(p))
 
 
 def generate_go_terms(
@@ -77,8 +84,73 @@ def filter_go_terms(terms_file_path, pat_file_path):
     # Filter
     unique_ids = set()
     for pat in patterns:
-        inds = index[name.str.match(pat)]
+        inds = index[name.str.match(pat, flags=re.IGNORECASE)]
         unique_ids = unique_ids.union(set(inds))
 
     filtered = go_df.loc[unique_ids]
     return filtered, list(unique_ids)
+
+
+def generate_go_heatmap(
+    term_paths,
+    pattern_paths,
+    save_path=None,
+    save_kwargs={},
+    order=None,
+    color_map=None,
+    **kwargs,
+):
+    # Book-keeping
+    cluster_labels = list(term_paths.keys())
+    id_dict = {}
+    pval_dict = {}
+    unique_ids = set()
+
+    # Extract filtered GO terms for each cluster
+    for cluster_id, term_path in term_paths.items():
+        pat_path = pattern_paths[cluster_id]
+        filtered_df, go_ids = filter_go_terms(term_path, pat_path)
+        p_val = transform_pval(filtered_df["p_value"])
+        unique_ids = unique_ids.union(set(go_ids))
+        id_dict[cluster_id] = go_ids
+        pval_dict[cluster_id] = p_val
+
+    print([(cid, len(ids)) for cid, ids in id_dict.items()])
+
+    # Generate df for cluster vs GO terms found
+    go_df = pd.DataFrame(index=cluster_labels, columns=unique_ids)
+    for label in cluster_labels:
+        go_df.loc[label, id_dict[label]] = pval_dict[label]
+
+    go_df = go_df.fillna(0)
+
+    # Create heatmap
+    go_ann = sc.AnnData(go_df)
+    go_ann.obs["clusters"] = go_ann.obs_names.astype("category")
+
+    var_names = go_ann.var_names
+    if order is not None:
+        # Convert to string
+        order_ = [str(o) for o in order]
+
+        # Reorder and group GO terms according to order
+        go_ann.obs["clusters"] = go_ann.obs["clusters"].cat.reorder_categories(order_)
+        var_names = {}
+        for o_, o in zip(order_, order):
+            var_names[o_] = id_dict[o]
+
+    if color_map is not None:
+        colors = [color_map[o] for o in order]
+        go_ann.uns["clusters_colors"] = colors
+
+    ax = sc.pl.heatmap(
+        go_ann, var_names=var_names, groupby="clusters", show=False, **kwargs
+    )
+    ax["groupby_ax"].set_ylabel("Clusters")
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+    plt.show()
+
+    return ax

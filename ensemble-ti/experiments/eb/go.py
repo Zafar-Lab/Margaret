@@ -152,3 +152,5 @@ def generate_go_heatmap(
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
+
+    return ax

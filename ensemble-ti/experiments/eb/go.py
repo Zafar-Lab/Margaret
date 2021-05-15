@@ -97,7 +97,7 @@ def generate_go_heatmap(
     save_path=None,
     save_kwargs={},
     order=None,
-    colors=None,
+    color_map=None,
     **kwargs,
 ):
     # Book-keeping
@@ -139,7 +139,8 @@ def generate_go_heatmap(
         for o_, o in zip(order_, order):
             var_names[o_] = id_dict[o]
 
-    if colors is not None:
+    if color_map is not None:
+        colors = [color_map[o] for o in order]
         go_ann.uns["clusters_colors"] = colors
 
     ax = sc.pl.heatmap(

@@ -468,7 +468,7 @@ def plot_lineage_trends(
     figsize=None,
     norm=True,
     threshold=0.95,
-    title=None,
+    show_title=False,
     save_path=None,
     ts_map=None,
     color_map=None,
@@ -476,7 +476,6 @@ def plot_lineage_trends(
     gam_kwargs={},
     **kwargs,
 ):
-    # NOTE: Code inspired from https://github.com/ShobiStassen/VIA
     t_states = cell_branch_probs.columns
     pt = ad.obs[pseudotime_key]
 
@@ -495,14 +494,21 @@ def plot_lineage_trends(
 
     data_df = pd.DataFrame(data_, columns=ad.var_names, index=ad.obs_names)
     ncols = math.ceil(len(genes) / nrows)
-    gs = plt.GridSpec(nrows=nrows, ncols=ncols)
-    plt.figure(figsize=figsize)
+    fig, ax = plt.subplots(
+        nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=figsize
+    )
     gene_idx = 0
 
     # Compute lineage expression trends for each gene
     for row_idx in range(nrows):
         for col_idx in range(ncols):
-            axes = plt.subplot(gs[row_idx, col_idx])
+            if nrows == 1:
+                axes = ax[col_idx]
+            elif ncols == 1:
+                axes = ax[row_idx]
+            else:
+                axes = ax[row_idx, col_idx]
+
             gene_exp = data_df.loc[:, genes[gene_idx]]
             for i in t_states:
                 # Get the val set
@@ -511,6 +517,7 @@ def plot_lineage_trends(
                 max_val_pt = max(val_pt)
 
                 # Fit GAM
+                # NOTE: GAM Code inspired from https://github.com/ShobiStassen/VIA
                 loc_i_bp = np.where(cell_branch_probs.loc[:, i] > 0)[0]
                 x = np.asarray(pt)[loc_i_bp].reshape(-1, 1)
                 y = np.asarray(gene_exp)[loc_i_bp].reshape(-1, 1)
@@ -534,11 +541,13 @@ def plot_lineage_trends(
                 # Remove the right and top axes
                 axes.spines["right"].set_visible(False)
                 axes.spines["top"].set_visible(False)
-                axes.set_ylim([0, 1])
+                # axes.set_ylim([0, 1])
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label=ts_label, **kwargs)
+            axes.set_ylabel("Normalized expression")
             axes.legend()
-            if title is not None:
-                plt.title(f"{title}: {genes[gene_idx]}")
+
+            if show_title:
+                plt.title(genes[gene_idx])
             gene_idx += 1
 
     if save_path is not None:

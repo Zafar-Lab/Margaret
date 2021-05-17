@@ -29,15 +29,19 @@ def plot_embeddings(
     save_path=None,
     title=None,
     show_legend=False,
+    show_colorbar=False,
+    axis_off=True,
     labels=None,
     legend_kwargs={},
+    cb_axes_pos=None,
+    cb_kwargs={},
     save_kwargs={},
     **kwargs,
 ):
     assert X.shape[-1] == 2
 
     # Set figsize
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
 
     # Set title (if set)
     if title is not None:
@@ -62,7 +66,15 @@ def plot_embeddings(
         for t, label in zip(text, labels):
             t.set_text(label)
         plt.gca().add_artist(legend)
-    plt.gca().set_axis_off()
+
+    if axis_off:
+        plt.gca().set_axis_off()
+
+    if show_colorbar:
+        cax = None
+        if cb_axes_pos is not None:
+            cax = fig.add_axes(cb_axes_pos)
+        plt.colorbar(scatter, cax=cax, **cb_kwargs)
 
     # Save
     if save_path is not None:
@@ -165,7 +177,7 @@ def plot_gene_expression(
 
             # Colorbar
             # TODO: Adjust the position of the colorbar
-            cb = plt.colorbar(sc, ax=axes, **cb_kwargs)
+            plt.colorbar(sc, ax=axes, **cb_kwargs)
 
     fig.tight_layout()
 
@@ -183,6 +195,7 @@ def plot_clusters(
     title=None,
     save_path=None,
     color_map=None,
+    leg_marker_size=None,
     legend_kwargs={},
     save_kwargs={},
     **kwargs,
@@ -212,8 +225,9 @@ def plot_clusters(
     legend = plt.legend(**legend_kwargs)
 
     # Hack to change the size of the markers in the legend
-    for h in legend.legendHandles:
-        h.set_sizes([18.0])
+    if leg_marker_size is not None:
+        for h in legend.legendHandles:
+            h.set_sizes([leg_marker_size])
 
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
@@ -226,38 +240,29 @@ def plot_pseudotime(
     pseudotime_key="X_pseudotime",
     cmap=None,
     figsize=None,
-    marker_size=5,
-    title=None,
+    cb_axes_pos=None,
     save_path=None,
     save_kwargs={},
+    cb_kwargs={},
     **kwargs,
 ):
+    # An alias to plotting embeddings with pseudotime projected on it
     pseudotime = adata.obs[pseudotime_key]
     X_embedded = adata.obsm[embedding_key]
 
     # Plot
-    plt.figure(figsize=figsize)
-    if title is not None:
-        plt.title(title)
-    plt.scatter(
-        X_embedded[:, 0],
-        X_embedded[:, 1],
-        s=marker_size,
+    plot_embeddings(
+        X_embedded,
         c=pseudotime,
         cmap=cmap,
+        figsize=figsize,
+        show_colorbar=True,
+        cb_axes_pos=cb_axes_pos,
+        save_path=save_path,
+        save_kwargs=save_kwargs,
+        cb_kwargs=cb_kwargs,
         **kwargs,
     )
-    plt.gca().set_axis_off()
-
-    # Display the Colorbar
-    vmin = np.min(pseudotime)
-    vmax = np.max(pseudotime)
-    normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
-    cax, _ = mp.colorbar.make_axes(plt.gca())
-    mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
-    if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
-    plt.show()
 
 
 def plot_graph(

@@ -23,6 +23,24 @@ from utils.util import compute_runtime
 # TODO: In the plotting module, create a decorator to save the plots
 
 
+@compute_runtime
+def generate_plot_embeddings(X, method="tsne", **kwargs):
+    if method == "phate":
+        phate_op = phate.PHATE(**kwargs)
+        X_phate = phate_op.fit_transform(X)
+        return X_phate
+    elif method == "tsne":
+        tsne = TSNE(n_components=2, **kwargs)
+        X_tsne = tsne.fit_transform(X)
+        return X_tsne
+    elif method == "umap":
+        u = umap.UMAP(n_components=2, **kwargs)
+        X_umap = u.fit_transform(X)
+        return X_umap
+    else:
+        raise ValueError(f"Unsupported embedding method type: {method}")
+
+
 def plot_embeddings(
     X,
     figsize=(12, 8),
@@ -82,22 +100,60 @@ def plot_embeddings(
     plt.show()
 
 
-@compute_runtime
-def generate_plot_embeddings(X, method="tsne", **kwargs):
-    if method == "phate":
-        phate_op = phate.PHATE(**kwargs)
-        X_phate = phate_op.fit_transform(X)
-        return X_phate
-    elif method == "tsne":
-        tsne = TSNE(n_components=2, **kwargs)
-        X_tsne = tsne.fit_transform(X)
-        return X_tsne
-    elif method == "umap":
-        u = umap.UMAP(n_components=2, **kwargs)
-        X_umap = u.fit_transform(X)
-        return X_umap
-    else:
-        raise ValueError(f"Unsupported embedding method type: {method}")
+def plot_boxplot_expression(
+    ad,
+    genes,
+    order=None,
+    cluster_key="metric_clusters",
+    imputation_key=None,
+    colors=None,
+    figsize=None,
+    show_labels=False,
+    **kwargs,
+):
+    communities = ad.obs[cluster_key]
+
+    data_ = ad.X
+    if imputation_key is not None:
+        data_ = ad.obsm[imputation_key]
+
+    if not isinstance(data_, pd.DataFrame):
+        if isinstance(data_, scipy.sparse.csr_matrix):
+            data_ = data_.todense()
+        data_ = pd.DataFrame(data_, index=ad.obs_names, columns=ad.var_names)
+
+    if order is not None:
+        assert len(order) == len(np.unique(communities))
+        for cluster_id in np.unique(communities):
+            assert cluster_id in order
+
+    # Set figsize
+    plt.figure(figsize=figsize)
+
+    for id, gene in enumerate(genes):
+        if gene not in ad.var_names:
+            print(f"Gene {gene} not found. Skipping")
+            continue
+
+        data = []
+        for cluster_id in order:
+            ids = communities == cluster_id
+
+            # Create the boxplot
+            gene_expr = data_.loc[ids, gene]
+            data.append(gene_expr)
+
+        box = plt.boxplot(data, labels=order, patch_artist=True, **kwargs)
+
+        # Facecolor for a gene will be same
+        if colors is not None:
+            for patch in box["boxes"]:
+                patch.set(facecolor=colors[id])
+
+        if show_labels:
+            plt.gca().set_ylabel("Gene expression")
+            plt.gca().set_xlabel("Cluster Ids")
+    plt.show()
 
 
 def plot_gene_expression(
@@ -115,9 +171,6 @@ def plot_gene_expression(
     show_title=False,
     **kwargs,
 ):
-    # BUG: Currently displays the colormap for
-    # each gene individually. Update to get a common vmin and
-    # vmax for all the genes that need to be plotted
     assert type(genes).__name__ in ["list", "tuple"]
     try:
         X_embedded = adata.obsm[obsm_key]
@@ -153,7 +206,7 @@ def plot_gene_expression(
             if gene_name not in net_genes:
                 gene_index = gene_index + 1
                 continue
-            # gene_name = net_genes[gene_index]
+
             gene_expression = imputed_data_df[gene_name].to_numpy()
 
             if norm:

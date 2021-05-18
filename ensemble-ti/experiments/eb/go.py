@@ -97,6 +97,7 @@ def generate_go_heatmap(
     save_path=None,
     save_kwargs={},
     order=None,
+    groups=None,
     color_map=None,
     **kwargs,
 ):
@@ -114,8 +115,6 @@ def generate_go_heatmap(
         unique_ids = unique_ids.union(set(go_ids))
         id_dict[cluster_id] = go_ids
         pval_dict[cluster_id] = p_val
-
-    print([(cid, len(ids)) for cid, ids in id_dict.items()])
 
     # Generate df for cluster vs GO terms found
     go_df = pd.DataFrame(index=cluster_labels, columns=unique_ids)
@@ -139,12 +138,25 @@ def generate_go_heatmap(
         for o_, o in zip(order_, order):
             var_names[o_] = id_dict[o]
 
+    if groups is not None:
+        # Group according to a custom ordering
+        var_names = {}
+        for k, v in groups.items():
+            vars = []
+            for cluster_idx in v:
+                vars.extend(id_dict[cluster_idx])
+            var_names[k] = vars
+
     if color_map is not None:
         colors = [color_map[o] for o in order]
         go_ann.uns["clusters_colors"] = colors
 
     ax = sc.pl.heatmap(
-        go_ann, var_names=var_names, groupby="clusters", show=False, **kwargs
+        go_ann,
+        var_names=var_names,
+        groupby="clusters",
+        show=False,
+        **kwargs,
     )
     ax["groupby_ax"].set_ylabel("Clusters")
 

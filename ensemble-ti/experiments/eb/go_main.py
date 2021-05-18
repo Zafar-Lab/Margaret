@@ -1,4 +1,4 @@
-from experiments.eb.go import generate_go_heatmap
+from go import generate_go_heatmap
 
 
 # GO analysis for 5 major lineages
@@ -86,6 +86,12 @@ pattern_paths = {
 }
 
 order = [2, 3, 5, 16, 12, 23, 9, 1, 7, 18, 8, 14, 17, 10, 20, 19, 11, 21, 0, 15, 4, 24]
+groups = {
+    "EN": [2],
+    "NE": [3, 5, 16, 12, 23],
+    "NC": [9, 1, 7],
+    "ME": [18, 8, 14, 17, 10, 20, 19, 11, 21, 0, 15, 4, 24],
+}
 color_map = {
     0: "#95a0b3",
     1: "#f8aa81",
@@ -116,8 +122,8 @@ generate_go_heatmap(
     order=order,
     cmap="Greens",
     figsize=(24, 6),
+    groups=groups,
     color_map=color_map,
-    var_group_rotation=90,
     save_path="/home/lexent/go_26.png",
     save_kwargs={"dpi": 200, "transparent": True, "bbox_inches": "tight"},
 )

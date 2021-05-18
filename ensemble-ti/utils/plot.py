@@ -23,21 +23,43 @@ from utils.util import compute_runtime
 # TODO: In the plotting module, create a decorator to save the plots
 
 
+@compute_runtime
+def generate_plot_embeddings(X, method="tsne", **kwargs):
+    if method == "phate":
+        phate_op = phate.PHATE(**kwargs)
+        X_phate = phate_op.fit_transform(X)
+        return X_phate
+    elif method == "tsne":
+        tsne = TSNE(n_components=2, **kwargs)
+        X_tsne = tsne.fit_transform(X)
+        return X_tsne
+    elif method == "umap":
+        u = umap.UMAP(n_components=2, **kwargs)
+        X_umap = u.fit_transform(X)
+        return X_umap
+    else:
+        raise ValueError(f"Unsupported embedding method type: {method}")
+
+
 def plot_embeddings(
     X,
     figsize=(12, 8),
     save_path=None,
     title=None,
     show_legend=False,
+    show_colorbar=False,
+    axis_off=True,
     labels=None,
     legend_kwargs={},
+    cb_axes_pos=None,
+    cb_kwargs={},
     save_kwargs={},
     **kwargs,
 ):
     assert X.shape[-1] == 2
 
     # Set figsize
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
 
     # Set title (if set)
     if title is not None:
@@ -62,7 +84,15 @@ def plot_embeddings(
         for t, label in zip(text, labels):
             t.set_text(label)
         plt.gca().add_artist(legend)
-    plt.gca().set_axis_off()
+
+    if axis_off:
+        plt.gca().set_axis_off()
+
+    if show_colorbar:
+        cax = None
+        if cb_axes_pos is not None:
+            cax = fig.add_axes(cb_axes_pos)
+        plt.colorbar(scatter, cax=cax, **cb_kwargs)
 
     # Save
     if save_path is not None:
@@ -70,22 +100,60 @@ def plot_embeddings(
     plt.show()
 
 
-@compute_runtime
-def generate_plot_embeddings(X, method="tsne", **kwargs):
-    if method == "phate":
-        phate_op = phate.PHATE(**kwargs)
-        X_phate = phate_op.fit_transform(X)
-        return X_phate
-    elif method == "tsne":
-        tsne = TSNE(n_components=2, **kwargs)
-        X_tsne = tsne.fit_transform(X)
-        return X_tsne
-    elif method == "umap":
-        u = umap.UMAP(n_components=2, **kwargs)
-        X_umap = u.fit_transform(X)
-        return X_umap
-    else:
-        raise ValueError(f"Unsupported embedding method type: {method}")
+def plot_boxplot_expression(
+    ad,
+    genes,
+    order=None,
+    cluster_key="metric_clusters",
+    imputation_key=None,
+    colors=None,
+    figsize=None,
+    show_labels=False,
+    **kwargs,
+):
+    communities = ad.obs[cluster_key]
+
+    data_ = ad.X
+    if imputation_key is not None:
+        data_ = ad.obsm[imputation_key]
+
+    if not isinstance(data_, pd.DataFrame):
+        if isinstance(data_, scipy.sparse.csr_matrix):
+            data_ = data_.todense()
+        data_ = pd.DataFrame(data_, index=ad.obs_names, columns=ad.var_names)
+
+    if order is not None:
+        assert len(order) == len(np.unique(communities))
+        for cluster_id in np.unique(communities):
+            assert cluster_id in order
+
+    # Set figsize
+    plt.figure(figsize=figsize)
+
+    for id, gene in enumerate(genes):
+        if gene not in ad.var_names:
+            print(f"Gene {gene} not found. Skipping")
+            continue
+
+        data = []
+        for cluster_id in order:
+            ids = communities == cluster_id
+
+            # Create the boxplot
+            gene_expr = data_.loc[ids, gene]
+            data.append(gene_expr)
+
+        box = plt.boxplot(data, labels=order, patch_artist=True, **kwargs)
+
+        # Facecolor for a gene will be same
+        if colors is not None:
+            for patch in box["boxes"]:
+                patch.set(facecolor=colors[id])
+
+        if show_labels:
+            plt.gca().set_ylabel("Gene expression")
+            plt.gca().set_xlabel("Cluster Ids")
+    plt.show()
 
 
 def plot_gene_expression(
@@ -103,9 +171,6 @@ def plot_gene_expression(
     show_title=False,
     **kwargs,
 ):
-    # BUG: Currently displays the colormap for
-    # each gene individually. Update to get a common vmin and
-    # vmax for all the genes that need to be plotted
     assert type(genes).__name__ in ["list", "tuple"]
     try:
         X_embedded = adata.obsm[obsm_key]
@@ -141,7 +206,7 @@ def plot_gene_expression(
             if gene_name not in net_genes:
                 gene_index = gene_index + 1
                 continue
-            # gene_name = net_genes[gene_index]
+
             gene_expression = imputed_data_df[gene_name].to_numpy()
 
             if norm:
@@ -165,7 +230,7 @@ def plot_gene_expression(
 
             # Colorbar
             # TODO: Adjust the position of the colorbar
-            cb = plt.colorbar(sc, ax=axes, **cb_kwargs)
+            plt.colorbar(sc, ax=axes, **cb_kwargs)
 
     fig.tight_layout()
 
@@ -183,6 +248,7 @@ def plot_clusters(
     title=None,
     save_path=None,
     color_map=None,
+    leg_marker_size=None,
     legend_kwargs={},
     save_kwargs={},
     **kwargs,
@@ -212,8 +278,9 @@ def plot_clusters(
     legend = plt.legend(**legend_kwargs)
 
     # Hack to change the size of the markers in the legend
-    for h in legend.legendHandles:
-        h.set_sizes([18.0])
+    if leg_marker_size is not None:
+        for h in legend.legendHandles:
+            h.set_sizes([leg_marker_size])
 
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
@@ -226,38 +293,29 @@ def plot_pseudotime(
     pseudotime_key="X_pseudotime",
     cmap=None,
     figsize=None,
-    marker_size=5,
-    title=None,
+    cb_axes_pos=None,
     save_path=None,
     save_kwargs={},
+    cb_kwargs={},
     **kwargs,
 ):
+    # An alias to plotting embeddings with pseudotime projected on it
     pseudotime = adata.obs[pseudotime_key]
     X_embedded = adata.obsm[embedding_key]
 
     # Plot
-    plt.figure(figsize=figsize)
-    if title is not None:
-        plt.title(title)
-    plt.scatter(
-        X_embedded[:, 0],
-        X_embedded[:, 1],
-        s=marker_size,
+    plot_embeddings(
+        X_embedded,
         c=pseudotime,
         cmap=cmap,
+        figsize=figsize,
+        show_colorbar=True,
+        cb_axes_pos=cb_axes_pos,
+        save_path=save_path,
+        save_kwargs=save_kwargs,
+        cb_kwargs=cb_kwargs,
         **kwargs,
     )
-    plt.gca().set_axis_off()
-
-    # Display the Colorbar
-    vmin = np.min(pseudotime)
-    vmax = np.max(pseudotime)
-    normalize = mp.colors.Normalize(vmin=vmin, vmax=vmax)
-    cax, _ = mp.colorbar.make_axes(plt.gca())
-    mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
-    if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
-    plt.show()
 
 
 def plot_graph(
@@ -463,7 +521,7 @@ def plot_lineage_trends(
     figsize=None,
     norm=True,
     threshold=0.95,
-    title=None,
+    show_title=False,
     save_path=None,
     ts_map=None,
     color_map=None,
@@ -471,7 +529,6 @@ def plot_lineage_trends(
     gam_kwargs={},
     **kwargs,
 ):
-    # NOTE: Code inspired from https://github.com/ShobiStassen/VIA
     t_states = cell_branch_probs.columns
     pt = ad.obs[pseudotime_key]
 
@@ -490,14 +547,21 @@ def plot_lineage_trends(
 
     data_df = pd.DataFrame(data_, columns=ad.var_names, index=ad.obs_names)
     ncols = math.ceil(len(genes) / nrows)
-    gs = plt.GridSpec(nrows=nrows, ncols=ncols)
-    plt.figure(figsize=figsize)
+    fig, ax = plt.subplots(
+        nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=figsize
+    )
     gene_idx = 0
 
     # Compute lineage expression trends for each gene
     for row_idx in range(nrows):
         for col_idx in range(ncols):
-            axes = plt.subplot(gs[row_idx, col_idx])
+            if nrows == 1:
+                axes = ax[col_idx]
+            elif ncols == 1:
+                axes = ax[row_idx]
+            else:
+                axes = ax[row_idx, col_idx]
+
             gene_exp = data_df.loc[:, genes[gene_idx]]
             for i in t_states:
                 # Get the val set
@@ -506,6 +570,7 @@ def plot_lineage_trends(
                 max_val_pt = max(val_pt)
 
                 # Fit GAM
+                # NOTE: GAM Code inspired from https://github.com/ShobiStassen/VIA
                 loc_i_bp = np.where(cell_branch_probs.loc[:, i] > 0)[0]
                 x = np.asarray(pt)[loc_i_bp].reshape(-1, 1)
                 y = np.asarray(gene_exp)[loc_i_bp].reshape(-1, 1)
@@ -529,11 +594,13 @@ def plot_lineage_trends(
                 # Remove the right and top axes
                 axes.spines["right"].set_visible(False)
                 axes.spines["top"].set_visible(False)
-                axes.set_ylim([0, 1])
+                # axes.set_ylim([0, 1])
                 axes.plot(xval, yg, linewidth=3.5, zorder=3, label=ts_label, **kwargs)
+            axes.set_ylabel("Normalized expression")
             axes.legend()
-            if title is not None:
-                plt.title(f"{title}: {genes[gene_idx]}")
+
+            if show_title:
+                plt.title(genes[gene_idx])
             gene_idx += 1
 
     if save_path is not None:

@@ -72,23 +72,29 @@ def get_terminal_states(
 
 
 def compute_cluster_lineage_likelihoods(
-    ad, adj_g, cluster_key="metric_clusters", terminal_key="metric_terminal_clusters"
+    ad,
+    adj_g,
+    cluster_key="metric_clusters",
+    terminal_key="metric_terminal_clusters",
+    norm=False,
 ):
     communities = ad.obs[cluster_key]
     cluster_ids = np.unique(communities)
     terminal_ids = ad.uns[terminal_key]
-    g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
-    cluster_lineage_likelihoods = pd.DataFrame(
+    cll = pd.DataFrame(
         np.zeros((len(cluster_ids), len(terminal_ids))),
         columns=terminal_ids,
         index=cluster_ids,
     )
 
+    # Create Directed Graph from adj matrix
+    g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
+
     for t_id in terminal_ids:
         for c_id in cluster_ids:
             # All terminal states end up in that state with prob 1.0
             if c_id == t_id:
-                cluster_lineage_likelihoods.loc[c_id, t_id] = 1.0
+                cll.loc[c_id, t_id] = 1.0
                 continue
 
             # Compute total likelihood along all possible paths
@@ -101,15 +107,14 @@ def compute_cluster_lineage_likelihoods(
                     _l *= adj_g.loc[next_state, path[idx]]
                     next_state = path[idx]
                 likelihood += _l
-            cluster_lineage_likelihoods.loc[c_id, t_id] = likelihood
+            cll.loc[c_id, t_id] = likelihood
 
     # Row-Normalize the lineage likelihoods
-    nz_inds = cluster_lineage_likelihoods.sum(axis=1) > 0
-    cluster_lineage_likelihoods[nz_inds] = cluster_lineage_likelihoods[nz_inds].div(
-        cluster_lineage_likelihoods[nz_inds].sum(axis=1), axis=0
-    )
+    if norm:
+        nz_inds = cll.sum(axis=1) > 0
+        cll[nz_inds] = cll[nz_inds].div(cll[nz_inds].sum(axis=1), axis=0)
 
-    return cluster_lineage_likelihoods
+    return cll
 
 
 def compute_cell_branch_probs(

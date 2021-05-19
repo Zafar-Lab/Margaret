@@ -108,7 +108,9 @@ def compute_trajectory_graph(
 
 
 @compute_runtime
-def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities, d_connectivity):
+def compute_trajectory_graph_v2(
+    pseudotime, adj_cluster, communities, d_connectivity, norm=False
+):
     n_communities = np.unique(communities).shape[0]
     cluster_ids = np.unique(communities)
 
@@ -117,30 +119,25 @@ def compute_trajectory_graph_v2(pseudotime, adj_cluster, communities, d_connecti
     )
 
     # Create cluster index
-    cluster_pseudotime = pd.DataFrame(index=cluster_ids)
+    cluster_pt = pd.DataFrame(index=cluster_ids)
     for idx in cluster_ids:
         cluster_idx = communities == idx
-        cluster_pseudotime.loc[idx, "t"] = np.mean(pseudotime.loc[cluster_idx])
+        cluster_pt.loc[idx, "t"] = np.mean(pseudotime.loc[cluster_idx])
 
     cols = adj_cluster.columns
-    rows = adj_cluster.index
     for idx in cluster_ids:
         connected_c_idx = cols[adj_cluster.loc[idx, :] != 0]
         for c_idx in connected_c_idx:
-            if (
-                cluster_pseudotime.loc[c_idx, "t"] > cluster_pseudotime.loc[idx, "t"]
-            ) and (adj_cluster.loc[c_idx, idx] != 0):
-                # The edge weight will be the contribution from the directed connectivities and difference of the pseudotimes
-                # adj.loc[idx, c_idx] = 1/(cluster_pseudotime.loc[c_idx, 't'] - cluster_pseudotime.loc[idx, 't'])
+            if (cluster_pt.loc[c_idx, "t"] > cluster_pt.loc[idx, "t"]) and (
+                adj_cluster.loc[c_idx, idx] != 0
+            ):
+                # The edge weight will be the contribution from the directed
+                # connectivities and difference of the pseudotimes
                 adj.loc[idx, c_idx] = d_connectivity[idx, c_idx] + 1 / (
-                    1
-                    + np.exp(
-                        cluster_pseudotime.loc[c_idx, "t"]
-                        - cluster_pseudotime.loc[idx, "t"]
-                    )
+                    1 + np.exp(cluster_pt.loc[c_idx, "t"] - cluster_pt.loc[idx, "t"])
                 )
 
     # Normalize the directed adjacency matrix
-    # We return the adjacency matrix as nx.Graph is not serializable
-    adj = adj.div(adj.sum(axis=1), axis=0).fillna(0)
+    if norm:
+        adj = adj.div(adj.sum(axis=1), axis=0).fillna(0)
     return adj

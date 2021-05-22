@@ -4,7 +4,13 @@ import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
+
+from numpy.linalg import inv
+from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import csr_matrix, find
+from scipy.stats import entropy
 from scipy.sparse.csgraph import dijkstra
+
 from utils.util import get_start_cell_cluster_id, prune_network_edges
 
 
@@ -238,3 +244,111 @@ def compute_cell_branch_probs(
     # Project onto cluster lineage probabilities
     cell_branch_probs = cell_branch_probs.dot(cluster_lineages)
     return cell_branch_probs
+
+
+# NOTE: Code credits: https://github.com/dpeerlab/Palantir/
+def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
+
+    # Markov chain construction
+    print("Markov chain construction...")
+    waypoints = wp_data.index
+
+    # kNN graph
+    n_neighbors = knn
+    nbrs = NearestNeighbors(
+        n_neighbors=n_neighbors, metric="euclidean", n_jobs=n_jobs
+    ).fit(wp_data)
+    kNN = nbrs.kneighbors_graph(wp_data, mode="distance")
+    dist, ind = nbrs.kneighbors(wp_data)
+
+    # Standard deviation allowing for "back" edges
+    adpative_k = np.min([int(np.floor(n_neighbors / 3)) - 1, 30])
+    adaptive_std = np.ravel(dist[:, adpative_k])
+
+    # Directed graph construction
+    # pseudotime position of all the neighbors
+    traj_nbrs = pd.DataFrame(
+        pseudotime[np.ravel(waypoints.values[ind])].values.reshape(
+            [len(waypoints), n_neighbors]
+        ),
+        index=waypoints,
+    )
+
+    # Remove edges that move backwards in pseudotime except for edges that are within
+    # the computed standard deviation
+    rem_edges = traj_nbrs.apply(
+        lambda x: x < pseudotime[traj_nbrs.index] - adaptive_std
+    )
+    rem_edges = rem_edges.stack()[rem_edges.stack()]
+
+    # Determine the indices and update adjacency matrix
+    cell_mapping = pd.Series(range(len(waypoints)), index=waypoints)
+    x = list(cell_mapping[rem_edges.index.get_level_values(0)])
+    y = list(rem_edges.index.get_level_values(1))
+    # Update adjacecy matrix
+    kNN[x, ind[x, y]] = 0
+
+    # Affinity matrix and markov chain
+    x, y, z = find(kNN)
+    aff = np.exp(
+        -(z ** 2) / (adaptive_std[x] ** 2) * 0.5
+        - (z ** 2) / (adaptive_std[y] ** 2) * 0.5
+    )
+    W = csr_matrix((aff, (x, y)), [len(waypoints), len(waypoints)])
+
+    # Transition matrix
+    D = np.ravel(W.sum(axis=1))
+    x, y, z = find(W)
+    T = csr_matrix((z / D[x], (x, y)), [len(waypoints), len(waypoints)])
+
+    return T
+
+
+def differentiation_entropy(wp_data, terminal_states, knn, n_jobs, pseudotime):
+    """Function to compute entropy and branch probabilities
+    :param wp_data: Multi scale data of the waypoints
+    :param terminal_states: Terminal states
+    :param knn: Number of nearest neighbors for graph construction
+    :param n_jobs: Number of jobs for parallel processing
+    :param pseudotime: Pseudo time ordering of cells
+    :return: entropy and branch probabilities
+    """
+
+    T = _construct_markov_chain(wp_data, knn, pseudotime, n_jobs)
+
+    # Absorption states should not have outgoing edges
+    waypoints = wp_data.index
+    abs_states = np.where(waypoints.isin(terminal_states))[0]
+    # Reset absorption state affinities by Removing neigbors
+    T[abs_states, :] = 0
+    # Diagnoals as 1s
+    T[abs_states, abs_states] = 1
+
+    # Fundamental matrix and absorption probabilities
+    print("Computing fundamental matrix and absorption probabilities...")
+    # Transition states
+    trans_states = list(set(range(len(waypoints))).difference(abs_states))
+
+    # Q matrix
+    Q = T[trans_states, :][:, trans_states]
+    # Fundamental matrix
+    mat = np.eye(Q.shape[0]) - Q.todense()
+    N = inv(mat)
+
+    # Absorption probabilities
+    branch_probs = np.dot(N, T[trans_states, :][:, abs_states].todense())
+    branch_probs = pd.DataFrame(
+        branch_probs, index=waypoints[trans_states], columns=waypoints[abs_states]
+    )
+    branch_probs[branch_probs < 0] = 0
+
+    # Entropy
+    ent = branch_probs.apply(entropy, axis=1)
+
+    # Add terminal states
+    ent = ent.append(pd.Series(0, index=terminal_states))
+    bp = pd.DataFrame(0, index=terminal_states, columns=terminal_states)
+    bp.values[range(len(terminal_states)), range(len(terminal_states))] = 1
+    branch_probs = branch_probs.append(bp.loc[:, branch_probs.columns])
+
+    return ent, branch_probs

@@ -4,12 +4,12 @@ import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
-
+from copy import deepcopy
 from numpy.linalg import inv
 from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import csr_matrix, find
+from scipy.sparse import find
 from scipy.stats import entropy
-from scipy.sparse.csgraph import dijkstra
+from scipy.sparse.csgraph import dijkstra, csr_matrix
 
 from utils.util import get_start_cell_cluster_id, prune_network_edges
 
@@ -324,7 +324,7 @@ def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
     return T
 
 
-def differentiation_entropy(wp_data, terminal_states, knn, n_jobs, pseudotime):
+def _differentiation_entropy(wp_data, terminal_states, knn, n_jobs, pseudotime):
     """Function to compute entropy and branch probabilities
     :param wp_data: Multi scale data of the waypoints
     :param terminal_states: Terminal states
@@ -372,3 +372,54 @@ def differentiation_entropy(wp_data, terminal_states, knn, n_jobs, pseudotime):
     branch_probs = branch_probs.append(bp.loc[:, branch_probs.columns])
 
     return ent, branch_probs
+
+
+def compute_diff_potential(
+    ad,
+    adj_dist,
+    embed_key="metric_embedding",
+    pt_key="metric_pseudotime_v2",
+    wp_key="metric_waypoints",
+    tc_key="metric_terminal_cells",
+    sim_scheme="lpi",
+    beta=None,
+    knn=15,
+    n_jobs=1,
+):
+    wps = ad.uns[wp_key]
+
+    # Add the terminal cells to the wp list
+    t_cell_ids = ad.uns[tc_key]
+    wps.extend(t_cell_ids)
+    wp_ = set(wps)
+
+    wp_sim = None
+
+    if sim_scheme == "lpi":
+        if beta is None:
+            raise ValueError("beta must be set when using LPI")
+        # LPI Index computation
+        dist_ = deepcopy(adj_dist.todense())
+        dist_[dist_ == 0] = np.inf
+        adj_conn_lpi = csr_matrix(np.exp(-dist_))
+
+        a_2 = adj_conn_lpi @ adj_conn_lpi
+        a_3 = a_2 @ adj_conn_lpi
+        lpi_sim = a_2 + beta * a_3
+        lpi_sim = pd.DataFrame(
+            lpi_sim.todense(), index=ad.obs_names, columns=ad.obs_names
+        )
+        wp_sim = lpi_sim.loc[:, wp_]
+
+    X = pd.DataFrame(ad.obsm[embed_key], index=ad.obs_names)
+    X_wp = X.loc[wp_, :]
+    pt = ad.obs[pt_key]
+    ent, bp = _differentiation_entropy(
+        X_wp, t_cell_ids, knn, pseudotime=pt, n_jobs=n_jobs
+    )
+
+    # Project branch probs on the cells
+    bps = wp_sim.loc[:, bp.index].to_numpy().dot(bp.loc.to_numpy())
+    ent = ss.entropy(bps, base=2, axis=1)
+
+    return ent, bps

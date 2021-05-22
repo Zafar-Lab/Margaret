@@ -4,6 +4,7 @@ import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
+from scipy.sparse.csgraph import dijkstra
 from utils.util import get_start_cell_cluster_id, prune_network_edges
 
 
@@ -115,6 +116,96 @@ def compute_cluster_lineage_likelihoods(
         cll[nz_inds] = cll[nz_inds].div(cll[nz_inds].sum(axis=1), axis=0)
 
     return cll
+
+
+def _sample_cluster_waypoints(X, g, cell_ids, n_waypoints=10, scheme="kmpp"):
+    X_cluster = X.loc[cell_ids, :]
+    cluster_index = X.index[cell_ids]
+    N = X_cluster.shape[0]
+
+    wps = []
+    cached_dists = {}
+
+    if scheme == "kmpp":
+        if n_waypoints > N:
+            return None
+
+        # Sample the first waypoint randomly
+        id = np.random.randint(0, N)
+        wps.append(cluster_index[id])
+        n_sampled = 0
+
+        # Sample the remaining waypoints
+        while True:
+            dist = pd.DataFrame(
+                np.zeros((N, len(wps))), index=cluster_index, columns=wps
+            )
+            for wp in wps:
+                # If the dist with a wp is precomputed use it
+                if wp in cached_dists.keys():
+                    dist.loc[:, wp] = cached_dists[wp]
+                    continue
+
+                # Else Compute the shortest path distance and cache
+                wp_id = np.where(cluster_index == wp)[0][0]
+                d = dijkstra(g.to_numpy(), directed=True, indices=wp_id)
+                dist.loc[:, wp] = d
+                cached_dists[wp] = d
+
+            # Exit if desired n_waypoints have been sampled
+            if n_sampled == n_waypoints - 1:
+                break
+
+            # Otherwise find the next waypoint
+            # Find the min_dist of the datapoints with existing centroids
+            min_dist = dist.min(axis=1)
+
+            # New waypoint will be the max of min distances
+            new_wp_id = min_dist.idxmax()
+            wps.append(new_wp_id)
+            n_sampled += 1
+
+        return wps, cached_dists
+
+    if scheme == "random":
+        raise NotImplementedError("The option `random` has not been implemented yet")
+
+
+def sample_waypoints(
+    ad,
+    adj_dist,
+    cluster_key="metric_clusters",
+    embedding_key="metric_embedding",
+    n_waypoints=10,
+    scheme="kmpp",
+):
+    X = pd.DataFrame(ad.obsm[embedding_key], index=ad.obs_names)
+    clusters = ad.obs[cluster_key]
+
+    adj_dist = pd.DataFrame(adj_dist, index=ad.obs_names, columns=ad.obs_names)
+    labels = np.unique(clusters)
+    wps = list()
+    dists = pd.DataFrame(index=ad.obs_names)
+
+    for cluster_id in labels:
+        # Sample waypoints for a cluster at a time
+        cell_ids = clusters == cluster_id
+        g = adj_dist.loc[cell_ids, cell_ids]
+        res = _sample_cluster_waypoints(
+            X, g, cell_ids, n_waypoints=n_waypoints, scheme=scheme
+        )
+        # res will be None when a cluster has less points than the n_waypoints
+        # This behavior is subject to change in the future.
+        if res is None:
+            continue
+
+        w_, d_ = res
+        wps.extend(w_)
+
+        for k, v in d_.items():
+            dists.loc[cell_ids, k] = v
+
+    return dists.fillna(0), wps
 
 
 def compute_cell_branch_probs(

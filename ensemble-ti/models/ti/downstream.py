@@ -7,9 +7,9 @@ import scipy.stats as ss
 from copy import deepcopy
 from numpy.linalg import inv
 from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import find
+from scipy.sparse import find, csr_matrix
 from scipy.stats import entropy
-from scipy.sparse.csgraph import dijkstra, csr_matrix
+from scipy.sparse.csgraph import dijkstra
 
 from utils.util import get_start_cell_cluster_id, prune_network_edges
 

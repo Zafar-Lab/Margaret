@@ -231,9 +231,13 @@ def sample_waypoints(
         for k, v in d_.items():
             dists.loc[cell_ids, k] = v
 
+    # Add the waypoint to the annotated data object
+    ad.uns["metric_waypoints"] = wps
+
     return dists.fillna(0), wps
 
 
+# NOTE: This method for computing cell branch probs is not obsolete
 def compute_cell_branch_probs(
     ad, adj_g, adj_dist, cluster_lineages, cluster_key="metric_clusters"
 ):

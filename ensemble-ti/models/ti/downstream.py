@@ -78,6 +78,26 @@ def get_terminal_states(
     return terminal_candidates
 
 
+def get_terminal_cells(
+    ad,
+    terminal_keys="metric_terminal_clusters",
+    cluster_key="metric_clusters",
+    pt_key="metric_pseudotime_v2",
+):
+    t_cell_ids = []
+    comms = ad.obs[terminal_keys]
+    pt = ad.obs[cluster_key]
+    for ts in ad.uns[pt_key]:
+        # Find the terminal cell within that cluster
+        t_ids = comms == ts
+        t_pt = pt.loc[t_ids]
+
+        # The terminal cell is the cell with the max pseudotime within a terminal cluster
+        t_cell_ids.append(t_pt.idxmax())
+
+    return t_cell_ids
+
+
 def compute_cluster_lineage_likelihoods(
     ad,
     adj_g,

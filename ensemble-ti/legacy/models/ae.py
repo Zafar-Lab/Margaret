@@ -182,7 +182,7 @@ class VAE(nn.Module):
         return output
 
     def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
+        std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
 
@@ -198,7 +198,7 @@ class VAE(nn.Module):
         return z, decoder_out, mu, logvar
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ae = AE(infeatures=100)
     dae = DAE(infeatures=100)
     vae = VAE(infeatures=100)

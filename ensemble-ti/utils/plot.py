@@ -123,9 +123,8 @@ def plot_boxplot_expression(
         data_ = pd.DataFrame(data_, index=ad.obs_names, columns=ad.var_names)
 
     if order is not None:
-        assert len(order) == len(np.unique(communities))
-        for cluster_id in np.unique(communities):
-            assert cluster_id in order
+        for cluster_id in np.unique(order):
+            assert cluster_id in np.unique(communities)
 
     # Set figsize
     plt.figure(figsize=figsize)
@@ -686,6 +685,62 @@ def plot_connectivity_graph_with_gene_expressions(
     cax, _ = mp.colorbar.make_axes(plt.gca())
     mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
 
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+    plt.show()
+
+
+def plot_cell_branch_probs(
+    ad,
+    cell_ids,
+    nrows=1,
+    bp_key="metric_branch_probs",
+    save_path=None,
+    figsize=None,
+    save_kwargs={},
+    color_map=None,
+    **bp_kwargs,
+):
+    ncols = math.ceil(len(cell_ids) / nrows)
+    fig, ax = plt.subplots(
+        nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=figsize
+    )
+    branch_probs = ad.obsm[bp_key]
+    cell_idx = 0
+
+    for row_idx in range(nrows):
+        for col_idx in range(ncols):
+            if nrows == 1 and ncols == 1:
+                axes = ax
+            elif nrows == 1:
+                axes = ax[col_idx]
+            elif ncols == 1:
+                axes = ax[row_idx]
+            else:
+                axes = ax[row_idx, col_idx]
+
+            cell_id = cell_ids[cell_idx]
+            cell_bp = branch_probs.loc[cell_id, :]
+
+            color = None
+            if color_map is not None:
+                color = [color_map[ts] for ts in cell_bp.index]
+
+            # Barplot of probs
+            x = np.arange(cell_bp.shape[-1])
+            axes.bar(x, cell_bp, color=color, **bp_kwargs)
+
+            # Remove the right and top axes
+            axes.spines["right"].set_visible(False)
+            axes.spines["top"].set_visible(False)
+
+            # Set Ticks
+            axes.set_xticks(x)
+            axes.set_xticklabels([])
+
+            cell_idx += 1
+
+    # Save
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()

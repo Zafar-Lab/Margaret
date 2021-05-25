@@ -4,13 +4,13 @@ import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
-from copy import deepcopy
 from numpy.linalg import inv
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import find, csr_matrix
 from scipy.stats import entropy
 from scipy.sparse.csgraph import dijkstra
 
+from models.ti.sim import compute_lpi, compute_lrw
 from utils.util import get_start_cell_cluster_id, prune_network_edges
 
 
@@ -85,15 +85,17 @@ def get_terminal_cells(
     pt_key="metric_pseudotime_v2",
 ):
     t_cell_ids = []
-    comms = ad.obs[terminal_keys]
-    pt = ad.obs[cluster_key]
-    for ts in ad.uns[pt_key]:
+    comms = ad.obs[cluster_key]
+    pt = ad.obs[pt_key]
+    for ts in ad.uns[terminal_keys]:
         # Find the terminal cell within that cluster
         t_ids = comms == ts
         t_pt = pt.loc[t_ids]
 
         # The terminal cell is the cell with the max pseudotime within a terminal cluster
         t_cell_ids.append(t_pt.idxmax())
+
+    ad.uns["metric_terminal_cells"] = t_cell_ids
 
     return t_cell_ids
 
@@ -237,7 +239,7 @@ def sample_waypoints(
     return dists.fillna(0), wps
 
 
-# NOTE: This method for computing cell branch probs is not obsolete
+# NOTE: This method for computing cell branch probs is now obsolete
 def compute_cell_branch_probs(
     ad, adj_g, adj_dist, cluster_lineages, cluster_key="metric_clusters"
 ):
@@ -271,7 +273,9 @@ def compute_cell_branch_probs(
 
 
 # NOTE: Code credits: https://github.com/dpeerlab/Palantir/
-def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
+def _construct_markov_chain(
+    wp_data, knn, pseudotime, comms, adj_cluster, std_factor=1.0, n_jobs=1
+):
 
     # Markov chain construction
     print("Markov chain construction...")
@@ -284,6 +288,12 @@ def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
     ).fit(wp_data)
     kNN = nbrs.kneighbors_graph(wp_data, mode="distance")
     dist, ind = nbrs.kneighbors(wp_data)
+
+    # Prune the kNN graph wrt to the undirected graph
+    wp = wp_data.index
+    kNN_pruned = pd.DataFrame(kNN.todense(), index=wp, columns=wp)
+    kNN_pruned = prune_network_edges(comms.loc[wp], kNN_pruned, adj_cluster)
+    kNN = csr_matrix(kNN_pruned)
 
     # Standard deviation allowing for "back" edges
     adpative_k = np.min([int(np.floor(n_neighbors / 3)) - 1, 30])
@@ -301,7 +311,7 @@ def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
     # Remove edges that move backwards in pseudotime except for edges that are within
     # the computed standard deviation
     rem_edges = traj_nbrs.apply(
-        lambda x: x < pseudotime[traj_nbrs.index] - adaptive_std
+        lambda x: x < pseudotime[traj_nbrs.index] - std_factor * adaptive_std
     )
     rem_edges = rem_edges.stack()[rem_edges.stack()]
 
@@ -309,6 +319,7 @@ def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
     cell_mapping = pd.Series(range(len(waypoints)), index=waypoints)
     x = list(cell_mapping[rem_edges.index.get_level_values(0)])
     y = list(rem_edges.index.get_level_values(1))
+
     # Update adjacecy matrix
     kNN[x, ind[x, y]] = 0
 
@@ -328,17 +339,26 @@ def _construct_markov_chain(wp_data, knn, pseudotime, n_jobs):
     return T
 
 
-def _differentiation_entropy(wp_data, terminal_states, knn, n_jobs, pseudotime):
-    """Function to compute entropy and branch probabilities
-    :param wp_data: Multi scale data of the waypoints
-    :param terminal_states: Terminal states
-    :param knn: Number of nearest neighbors for graph construction
-    :param n_jobs: Number of jobs for parallel processing
-    :param pseudotime: Pseudo time ordering of cells
-    :return: entropy and branch probabilities
-    """
+def _differentiation_entropy(
+    wp_data,
+    terminal_states,
+    knn,
+    pseudotime,
+    comms,
+    adj_cluster,
+    std_factor=1.0,
+    n_jobs=1,
+):
 
-    T = _construct_markov_chain(wp_data, knn, pseudotime, n_jobs)
+    T = _construct_markov_chain(
+        wp_data,
+        knn,
+        pseudotime,
+        comms,
+        adj_cluster,
+        std_factor=std_factor,
+        n_jobs=n_jobs,
+    )
 
     # Absorption states should not have outgoing edges
     waypoints = wp_data.index
@@ -381,13 +401,16 @@ def _differentiation_entropy(wp_data, terminal_states, knn, n_jobs, pseudotime):
 def compute_diff_potential(
     ad,
     adj_dist,
+    adj_cluster,
+    comms_key="metric_clusters",
     embed_key="metric_embedding",
     pt_key="metric_pseudotime_v2",
     wp_key="metric_waypoints",
     tc_key="metric_terminal_cells",
-    sim_scheme="lpi",
-    beta=None,
-    knn=15,
+    sim_scheme="lrw",
+    sim_kwargs={},
+    std_factor=1.0,
+    knn=30,
     n_jobs=1,
 ):
     wps = ad.uns[wp_key]
@@ -397,33 +420,51 @@ def compute_diff_potential(
     wps.extend(t_cell_ids)
     wp_ = set(wps)
 
-    wp_sim = None
+    # Cell to Waypoint Connectivity
+    print("Cell to Waypoint connectivity")
+    communities = ad.obs[comms_key]
+    adj_dist_pruned = prune_network_edges(
+        communities,
+        pd.DataFrame(adj_dist, index=ad.obs_names, columns=ad.obs_names),
+        adj_cluster,
+    )
+    adj_dist_pruned[adj_dist_pruned == 0] = np.inf
+
+    # This represents the final connectivity Adj mat. between cells
+    adj_conn = csr_matrix(np.exp(-np.power(adj_dist_pruned, 2)))
 
     if sim_scheme == "lpi":
-        if beta is None:
-            raise ValueError("beta must be set when using LPI")
-        # LPI Index computation
-        dist_ = deepcopy(adj_dist.todense())
-        dist_[dist_ == 0] = np.inf
-        adj_conn_lpi = csr_matrix(np.exp(-dist_))
-
-        a_2 = adj_conn_lpi @ adj_conn_lpi
-        a_3 = a_2 @ adj_conn_lpi
-        lpi_sim = a_2 + beta * a_3
-        lpi_sim = pd.DataFrame(
-            lpi_sim.todense(), index=ad.obs_names, columns=ad.obs_names
+        S = compute_lpi(adj_conn, **sim_kwargs)
+    elif sim_scheme == "lrw":
+        S = compute_lrw(adj_conn, **sim_kwargs)
+    else:
+        raise NotImplementedError(
+            f"The scheme {sim_scheme} has not been implemented yet!"
         )
-        wp_sim = lpi_sim.loc[:, wp_]
 
+    S = pd.DataFrame(S.todense(), index=ad.obs_names, columns=ad.obs_names)
+
+    # Waypoint to Terminal State connectivity
+    print("Waypoint to Terminal State connectivity")
     X = pd.DataFrame(ad.obsm[embed_key], index=ad.obs_names)
     X_wp = X.loc[wp_, :]
     pt = ad.obs[pt_key]
-    ent, bp = _differentiation_entropy(
-        X_wp, t_cell_ids, knn, pseudotime=pt, n_jobs=n_jobs
+    wp_comms = communities.loc[wp_]
+    _, bp = _differentiation_entropy(
+        X_wp,
+        t_cell_ids,
+        knn,
+        pt,
+        wp_comms,
+        adj_cluster,
+        std_factor=std_factor,
+        n_jobs=n_jobs,
     )
 
     # Project branch probs on the cells
-    bps = wp_sim.loc[:, bp.index].to_numpy().dot(bp.loc.to_numpy())
+    bps = S.loc[:, wp_].loc[:, bp.index].dot(bp)
+
+    # Compute row-wise entropy to compute DP
     ent = ss.entropy(bps, base=2, axis=1)
 
     return ent, bps

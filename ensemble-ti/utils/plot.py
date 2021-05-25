@@ -555,7 +555,9 @@ def plot_lineage_trends(
     # Compute lineage expression trends for each gene
     for row_idx in range(nrows):
         for col_idx in range(ncols):
-            if nrows == 1:
+            if nrows == 1 and ncols == 1:
+                axes = ax
+            elif nrows == 1:
                 axes = ax[col_idx]
             elif ncols == 1:
                 axes = ax[row_idx]
@@ -566,6 +568,8 @@ def plot_lineage_trends(
             for i in t_states:
                 # Get the val set
                 loc_i = np.where(cell_branch_probs.loc[:, i] > threshold)[0]
+                if loc_i.shape[0] == 0:
+                    continue
                 val_pt = pt[loc_i]
                 max_val_pt = max(val_pt)
 

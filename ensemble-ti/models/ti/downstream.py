@@ -475,8 +475,13 @@ def compute_diff_potential(
 
     # Project branch probs on the cells
     bps = S.loc[:, wp_].loc[:, bp.index].dot(bp)
+    bps = bps.div(bps.sum(axis=1), axis=0)
 
     # Compute row-wise entropy to compute DP
     ent = ss.entropy(bps, base=2, axis=1)
+
+    # Add to the anndata object
+    ad.obsm["metric_branch_probs"] = bps
+    ad.obs["metric_dp"] = ent
 
     return ent, bps

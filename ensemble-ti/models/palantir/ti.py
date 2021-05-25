@@ -12,9 +12,12 @@ from sklearn.neighbors import NearestNeighbors
 # Module that implements the psuedotime computation
 # using the waypoint approach suggested in Palantir
 def compute_trajectory(
-    adata, early_cell_label,
-    n_neighbors=30, n_waypoints=500, max_iterations=10,
-    obsm_key='X_diffusion'
+    adata,
+    early_cell_label,
+    n_neighbors=30,
+    n_waypoints=500,
+    max_iterations=10,
+    obsm_key="X_diffusion",
 ):
     """Computes Pseudotime for a given dataset
 
@@ -27,43 +30,50 @@ def compute_trajectory(
         obsm_key (str, optional): Key which contains latent space embeddings. Defaults to 'X_diffusion'.
     """
     if not isinstance(adata, sc.AnnData):
-        raise ValueError('adata must be of type sc.AnnData')
+        raise ValueError("adata must be of type sc.AnnData")
     try:
         X = adata.obsm[obsm_key]
     except KeyError:
-        raise Exception(f'Key {obsm_key} not found in adata')
+        raise Exception(f"Key {obsm_key} not found in adata")
 
     X_df = pd.DataFrame(X, index=adata.to_df().index)
 
     # Get starting cell
-    print('Determining starting cell')
+    print("Determining starting cell")
     start_cell_idx = get_starting_cell(X_df, early_cell_label)
-    print(f'Found cell {X_df.index[start_cell_idx]} closest to user-defined cell: {early_cell_label}')
+    print(
+        f"Found cell {X_df.index[start_cell_idx]} closest to user-defined cell: {early_cell_label}"
+    )
 
     # Compute waypoints
-    print('Computing Waypoints')
+    print("Computing Waypoints")
     waypoint_set = get_waypoints(X, n_waypoints=n_waypoints)
     waypoint_set.add(start_cell_idx)
 
     # Compute pseudotime
-    print('Estimating Pseudotime')
+    print("Estimating Pseudotime")
     pseudotime, W = compute_pseudotime(
-        X_df, start_cell_idx, waypoint_set,
-        n_neighbors=n_neighbors, max_iterations=max_iterations
+        X_df,
+        start_cell_idx,
+        waypoint_set,
+        n_neighbors=n_neighbors,
+        max_iterations=max_iterations,
     )
-    adata.obsm['X_pseudotime'] = pseudotime
-    adata.uns['waypoint_weights'] = W
-    print('Done!. The pseudotime estimates can be found in the key `X_pseudotime` under data.obsm')
+    adata.obsm["X_pseudotime"] = pseudotime
+    adata.uns["waypoint_weights"] = W
+    print(
+        "Done!. The pseudotime estimates can be found in the key `X_pseudotime` under data.obsm"
+    )
 
 
 def get_starting_cell(data_df, cell_label):
     """Returns the id of the boundary cell closest to the user-specified starting cell"""
     if not isinstance(data_df, pd.DataFrame):
-        raise ValueError('data_df must be of type pd.DataFrame')
+        raise ValueError("data_df must be of type pd.DataFrame")
 
     # Index of the early cell
     early_cell_idx = np.where(data_df.index == cell_label)[0][0]
-    
+
     # Find the cell ids with max and min components
     X = data_df.to_numpy()
     min_ids = np.argmin(X, axis=0)
@@ -83,7 +93,7 @@ def get_waypoints(X, n_waypoints=50):
     method as described in Palantir.
     """
     if not isinstance(X, np.ndarray):
-        raise ValueError('X must be of type np.ndarray')
+        raise ValueError("X must be of type np.ndarray")
 
     N = X.shape[0]
     n_components = X.shape[-1]
@@ -114,9 +124,10 @@ def get_waypoints(X, n_waypoints=50):
     return waypoints
 
 
-def compute_pseudotime(X_df, start_cell_idx, waypoints, n_neighbors=30, max_iterations=10):
-    """Computes Pseudotime based on the method suggested in Palantir
-    """
+def compute_pseudotime(
+    X_df, start_cell_idx, waypoints, n_neighbors=30, max_iterations=10
+):
+    """Computes Pseudotime based on the method suggested in Palantir"""
     X = X_df.to_numpy()
     N = X.shape[0]
     nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric="euclidean").fit(X)
@@ -153,7 +164,7 @@ def compute_pseudotime(X_df, start_cell_idx, waypoints, n_neighbors=30, max_iter
             neg_inds = pseudotime < dist_wp
             # NOTE: This update step is also different
             # than what has been described in the paper
-            P[idx, neg_inds] = - D[idx, neg_inds]
+            P[idx, neg_inds] = -D[idx, neg_inds]
             P[idx, :] = P[idx, :] + dist_wp
         pseudotime_ = np.sum(np.multiply(P, W), axis=0)
 

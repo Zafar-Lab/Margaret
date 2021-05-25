@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import scanpy as sc
 import torch
 
@@ -8,14 +7,22 @@ from torch.utils.data import Dataset
 
 # TODO: Support testing triplets
 class MetricDataset(Dataset):
-    def __init__(self, data, obsm_cluster_key='phenograph_communities', obsm_data_key='X_pca', transform=None):
+    def __init__(
+        self,
+        data,
+        obsm_cluster_key="phenograph_communities",
+        obsm_data_key="X_pca",
+        transform=None,
+    ):
         if not isinstance(data, sc.AnnData):
-            raise Exception(f'Expected data to be of type sc.AnnData found : {type(data)}')
+            raise Exception(
+                f"Expected data to be of type sc.AnnData found : {type(data)}"
+            )
         self.data = data
         try:
             self.cluster_inds = data.obs[obsm_cluster_key]
         except KeyError:
-            raise Exception(f'`{obsm_cluster_key}` must be set in the data')
+            raise Exception(f"`{obsm_cluster_key}` must be set in the data")
         self.X = self.data.obsm[obsm_data_key]
         self.unique_clusters = np.unique(self.cluster_inds)
 
@@ -27,9 +34,11 @@ class MetricDataset(Dataset):
         # Sample the anchor and the positive class
         anchor, pos_class = torch.Tensor(self.X[idx]), self.cluster_inds[idx]
         positive_idx = idx
-        
+
         while positive_idx == idx:
-            positive_idx = np.random.choice(self.indices[self.cluster_inds == pos_class])
+            positive_idx = np.random.choice(
+                self.indices[self.cluster_inds == pos_class]
+            )
         pos_sample = self.X[positive_idx]
 
         # Sample the negative label and sample

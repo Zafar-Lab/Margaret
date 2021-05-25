@@ -5,7 +5,9 @@ from models.attention.self_attention import SelfAttention
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, inplanes, num_heads, dropout=0, mode='embedded', share_weights=False):
+    def __init__(
+        self, inplanes, num_heads, dropout=0, mode="embedded", share_weights=False
+    ):
         super(MultiHeadAttention, self).__init__()
 
         self.inplanes = inplanes
@@ -13,10 +15,16 @@ class MultiHeadAttention(nn.Module):
         self.mode = mode
         self.share_weights = share_weights
         self.truncated_planes = self.inplanes // self.num_heads
-        
-        self.key_transform = nn.Conv1d(self.inplanes, self.truncated_planes * self.num_heads, 1, bias=False)
-        self.query_transform = nn.Conv1d(self.inplanes, self.truncated_planes * self.num_heads, 1, bias=False)
-        self.value_transform = nn.Conv1d(self.inplanes, self.truncated_planes * self.num_heads, 1, bias=False)
+
+        self.key_transform = nn.Conv1d(
+            self.inplanes, self.truncated_planes * self.num_heads, 1, bias=False
+        )
+        self.query_transform = nn.Conv1d(
+            self.inplanes, self.truncated_planes * self.num_heads, 1, bias=False
+        )
+        self.value_transform = nn.Conv1d(
+            self.inplanes, self.truncated_planes * self.num_heads, 1, bias=False
+        )
 
         if self.share_weights:
             # Make the query and the key weights shared
@@ -62,10 +70,9 @@ class AttentionHead(nn.Module):
             MultiHeadAttention(self.inplanes, self.num_heads, dropout=self.mh_dropout),
         )
         self.ff_module = nn.Sequential(
-            nn.GroupNorm(1, self.inplanes),
-            nn.Conv1d(self.inplanes, self.inplanes, 1)
+            nn.GroupNorm(1, self.inplanes), nn.Conv1d(self.inplanes, self.inplanes, 1)
         )
-    
+
     def forward(self, x):
         # Attention module
         identity = x

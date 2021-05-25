@@ -6,9 +6,10 @@ from scipy.sparse.linalg import eigs
 
 
 class DiffusionMap:
-    """This Diffusion Map implementation is inspired from the implementation of 
+    """This Diffusion Map implementation is inspired from the implementation of
     https://github.com/dpeerlab/Palantir/blob/master/src/palantir/utils.py
     """
+
     def __init__(self, n_components=10, n_neighbors=30, alpha=0, **kwargs):
         self.n_components = n_components
         self.n_neighbors = n_neighbors
@@ -17,12 +18,12 @@ class DiffusionMap:
 
     def __call__(self, data):
         if not isinstance(data, np.ndarray):
-            raise ValueError('The input data must be a numpy array!')
+            raise ValueError("The input data must be a numpy array!")
         print("Determing nearest neighbor graph...")
         temp = sc.AnnData(data)
         sc.pp.neighbors(temp, n_neighbors=self.n_neighbors, n_pcs=0, **self.kwargs)
         N = temp.shape[0]
-        kNN = temp.obsp['distances']
+        kNN = temp.obsp["distances"]
 
         # Adaptive k
         # This gives the lth neighbor as described in the Palantir paper
@@ -42,7 +43,7 @@ class DiffusionMap:
 
         # Diffusion components (Make the kernel symmetric for better performance)
         kernel = W + W.T
-    
+
         # Row-stochastic Normalization
         D = np.ravel(kernel.sum(axis=1))
         if self.alpha > 0:
@@ -70,12 +71,7 @@ class DiffusionMap:
             V[:, i] = V[:, i] / np.linalg.norm(V[:, i])
 
         # Create are results dictionary
-        return {
-            "T": T,
-            "eigenvectors": V,
-            "eigenvalues": D,
-            "kernel": kernel
-        }
+        return {"T": T, "eigenvectors": V, "eigenvalues": D, "kernel": kernel}
 
     def determine_multiscale_space(self, eigenvalues, eigenvectors, n_eigs=None):
         # Perform eigen gap analysis to select eigenvectors
@@ -104,12 +100,12 @@ class IterativeDiffusionMap:
 
     def __call__(self, data):
         if not isinstance(data, np.ndarray):
-            raise ValueError('The input data must be a numpy array!')
-        print(f'Running Iterative Diffusion Maps for {self.iterations} iterations')
+            raise ValueError("The input data must be a numpy array!")
+        print(f"Running Iterative Diffusion Maps for {self.iterations} iterations")
         ev = data
         for _ in range(self.iterations):
             res = self.map(ev)
-            ev = res['eigenvectors']
+            ev = res["eigenvectors"]
         return res
 
 
@@ -121,11 +117,11 @@ class IterativeDiffusionMapv2:
 
     def __call__(self, data):
         if not isinstance(data, np.ndarray):
-            raise ValueError('The input data must be a numpy array!')
-        print(f'Running Iterative Diffusion Maps for {self.iterations} iterations')
+            raise ValueError("The input data must be a numpy array!")
+        print(f"Running Iterative Diffusion Maps for {self.iterations} iterations")
         ev = data
         for d in self.inter:
             map_ = DiffusionMap(n_components=d, **self.kwargs)
             res = map_(ev)
-            ev = res['eigenvectors']
+            ev = res["eigenvectors"]
         return res

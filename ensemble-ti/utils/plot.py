@@ -257,6 +257,7 @@ def plot_clusters(
     title=None,
     save_path=None,
     color_map=None,
+    show_legend=True,
     leg_marker_size=None,
     legend_kwargs={},
     save_kwargs={},
@@ -284,12 +285,14 @@ def plot_clusters(
         )
 
     axes.set_axis_off()
-    legend = plt.legend(**legend_kwargs)
 
-    # Hack to change the size of the markers in the legend
-    if leg_marker_size is not None:
-        for h in legend.legendHandles:
-            h.set_sizes([leg_marker_size])
+    if show_legend:
+        legend = plt.legend(**legend_kwargs)
+
+        # Hack to change the size of the markers in the legend
+        if leg_marker_size is not None:
+            for h in legend.legendHandles:
+                h.set_sizes([leg_marker_size])
 
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)

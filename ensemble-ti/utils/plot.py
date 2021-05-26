@@ -762,3 +762,56 @@ def plot_cell_branch_probs(
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
+
+
+def plot_dp_vs_pseudotime(
+    ad,
+    lineage,
+    comms_key="metric_clusters",
+    pt_key="metric_pseudotime_v2",
+    dp_key="metric_dp",
+    lineage_color_map=None,
+    show_label=True,
+    figsize=None,
+    save_path=None,
+    save_kwargs={},
+    **kwargs,
+):
+    lineage_cell_ids = []
+    colors = []
+    comms = ad.obs[comms_key]
+
+    for cluster_id in lineage:
+        assert cluster_id in np.unique(comms)
+        cell_ids = list(comms.index[comms == cluster_id])
+        lineage_cell_ids.extend(cell_ids)
+
+        # Add cell colors
+        if lineage_color_map is not None:
+            cluster_color = lineage_color_map[cluster_id]
+            colors.extend([cluster_color] * len(cell_ids))
+
+    dp = ad.obs[dp_key]
+    pt = ad.obs[pt_key]
+
+    lineage_pt = list(pt.loc[lineage_cell_ids])
+    lineage_dp = list(dp.loc[lineage_cell_ids])
+
+    # Display
+    plt.figure(figsize=figsize)
+    plt.scatter(lineage_pt, lineage_dp, s=1, c=colors, **kwargs)
+
+    # Remove the right and top axes
+    ax = plt.gca()
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+
+    # Set labels
+    if show_label:
+        ax.set_xlabel("Pseudotime")
+        ax.set_ylabel("Differentiation Potential")
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+    plt.show()

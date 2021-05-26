@@ -754,7 +754,7 @@ def plot_cell_branch_probs(
 
             if tick_map is not None:
                 ticks = [tick_map[t_cell_id] for t_cell_id in cell_bp.index]
-            axes.set_xticklabels(ticks)
+            axes.set_xticklabels(ticks, rotation=45)
 
             cell_idx += 1
 

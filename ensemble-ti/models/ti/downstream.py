@@ -479,6 +479,7 @@ def compute_diff_potential(
 
     # Compute row-wise entropy to compute DP
     ent = ss.entropy(bps, base=2, axis=1)
+    ent = pd.Series(ent, index=ad.obs_names)
 
     # Add to the anndata object
     ad.obsm["metric_branch_probs"] = bps

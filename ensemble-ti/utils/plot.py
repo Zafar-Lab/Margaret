@@ -109,6 +109,8 @@ def plot_boxplot_expression(
     colors=None,
     figsize=None,
     show_labels=False,
+    save_path=None,
+    save_kwargs={},
     **kwargs,
 ):
     communities = ad.obs[cluster_key]
@@ -128,6 +130,7 @@ def plot_boxplot_expression(
 
     # Set figsize
     plt.figure(figsize=figsize)
+    ax = plt.gca()
 
     for id, gene in enumerate(genes):
         if gene not in ad.var_names:
@@ -150,8 +153,15 @@ def plot_boxplot_expression(
                 patch.set(facecolor=colors[id])
 
         if show_labels:
-            plt.gca().set_ylabel("Gene expression")
-            plt.gca().set_xlabel("Cluster Ids")
+            ax.set_ylabel("Gene expression")
+            ax.set_xlabel("Cluster Ids")
+
+    # Remove the right and top axes
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
     plt.show()
 
 
@@ -699,6 +709,7 @@ def plot_cell_branch_probs(
     figsize=None,
     save_kwargs={},
     color_map=None,
+    tick_map=None,
     **bp_kwargs,
 ):
     ncols = math.ceil(len(cell_ids) / nrows)
@@ -736,7 +747,11 @@ def plot_cell_branch_probs(
 
             # Set Ticks
             axes.set_xticks(x)
-            axes.set_xticklabels([])
+            ticks = []
+
+            if tick_map is not None:
+                ticks = [tick_map[t_cell_id] for t_cell_id in cell_bp.index]
+            axes.set_xticklabels(ticks)
 
             cell_idx += 1
 

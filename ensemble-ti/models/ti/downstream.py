@@ -274,7 +274,14 @@ def compute_cell_branch_probs(
 
 # NOTE: Code credits: https://github.com/dpeerlab/Palantir/
 def _construct_markov_chain(
-    wp_data, knn, pseudotime, comms, adj_cluster, std_factor=1.0, n_jobs=1
+    wp_data,
+    knn,
+    pseudotime,
+    comms,
+    adj_cluster,
+    std_factor=1.0,
+    prune_wp_graph=True,
+    n_jobs=1,
 ):
 
     # Markov chain construction
@@ -290,10 +297,11 @@ def _construct_markov_chain(
     dist, ind = nbrs.kneighbors(wp_data)
 
     # Prune the kNN graph wrt to the undirected graph
-    wp = wp_data.index
-    kNN_pruned = pd.DataFrame(kNN.todense(), index=wp, columns=wp)
-    kNN_pruned = prune_network_edges(comms.loc[wp], kNN_pruned, adj_cluster)
-    kNN = csr_matrix(kNN_pruned)
+    if prune_wp_graph:
+        wp = wp_data.index
+        kNN_pruned = pd.DataFrame(kNN.todense(), index=wp, columns=wp)
+        kNN_pruned = prune_network_edges(comms.loc[wp], kNN_pruned, adj_cluster)
+        kNN = csr_matrix(kNN_pruned)
 
     # Standard deviation allowing for "back" edges
     adpative_k = np.min([int(np.floor(n_neighbors / 3)) - 1, 30])
@@ -348,6 +356,7 @@ def _differentiation_entropy(
     adj_cluster,
     std_factor=1.0,
     n_jobs=1,
+    prune_wp_graph=True,
 ):
 
     T = _construct_markov_chain(
@@ -358,6 +367,7 @@ def _differentiation_entropy(
         adj_cluster,
         std_factor=std_factor,
         n_jobs=n_jobs,
+        prune_wp_graph=prune_wp_graph,
     )
 
     # Absorption states should not have outgoing edges
@@ -411,6 +421,7 @@ def compute_diff_potential(
     sim_kwargs={},
     std_factor=1.0,
     knn=30,
+    prune_wp_graph=True,
     n_jobs=1,
 ):
     wps = ad.uns[wp_key]
@@ -458,13 +469,20 @@ def compute_diff_potential(
         wp_comms,
         adj_cluster,
         std_factor=std_factor,
+        prune_wp_graph=prune_wp_graph,
         n_jobs=n_jobs,
     )
 
     # Project branch probs on the cells
     bps = S.loc[:, wp_].loc[:, bp.index].dot(bp)
+    bps = bps.div(bps.sum(axis=1), axis=0)
 
     # Compute row-wise entropy to compute DP
     ent = ss.entropy(bps, base=2, axis=1)
+    ent = pd.Series(ent, index=ad.obs_names)
+
+    # Add to the anndata object
+    ad.obsm["metric_branch_probs"] = bps
+    ad.obs["metric_dp"] = ent
 
     return ent, bps

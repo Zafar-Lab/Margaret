@@ -109,6 +109,8 @@ def plot_boxplot_expression(
     colors=None,
     figsize=None,
     show_labels=False,
+    save_path=None,
+    save_kwargs={},
     **kwargs,
 ):
     communities = ad.obs[cluster_key]
@@ -123,12 +125,12 @@ def plot_boxplot_expression(
         data_ = pd.DataFrame(data_, index=ad.obs_names, columns=ad.var_names)
 
     if order is not None:
-        assert len(order) == len(np.unique(communities))
-        for cluster_id in np.unique(communities):
-            assert cluster_id in order
+        for cluster_id in np.unique(order):
+            assert cluster_id in np.unique(communities)
 
     # Set figsize
     plt.figure(figsize=figsize)
+    ax = plt.gca()
 
     for id, gene in enumerate(genes):
         if gene not in ad.var_names:
@@ -151,8 +153,15 @@ def plot_boxplot_expression(
                 patch.set(facecolor=colors[id])
 
         if show_labels:
-            plt.gca().set_ylabel("Gene expression")
-            plt.gca().set_xlabel("Cluster Ids")
+            ax.set_ylabel("Gene expression")
+            ax.set_xlabel("Cluster Ids")
+
+    # Remove the right and top axes
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
     plt.show()
 
 
@@ -248,6 +257,7 @@ def plot_clusters(
     title=None,
     save_path=None,
     color_map=None,
+    show_legend=True,
     leg_marker_size=None,
     legend_kwargs={},
     save_kwargs={},
@@ -275,12 +285,14 @@ def plot_clusters(
         )
 
     axes.set_axis_off()
-    legend = plt.legend(**legend_kwargs)
 
-    # Hack to change the size of the markers in the legend
-    if leg_marker_size is not None:
-        for h in legend.legendHandles:
-            h.set_sizes([leg_marker_size])
+    if show_legend:
+        legend = plt.legend(**legend_kwargs)
+
+        # Hack to change the size of the markers in the legend
+        if leg_marker_size is not None:
+            for h in legend.legendHandles:
+                h.set_sizes([leg_marker_size])
 
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
@@ -686,6 +698,120 @@ def plot_connectivity_graph_with_gene_expressions(
     cax, _ = mp.colorbar.make_axes(plt.gca())
     mp.colorbar.ColorbarBase(cax, norm=normalize, cmap=plt.get_cmap(cmap))
 
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+    plt.show()
+
+
+def plot_cell_branch_probs(
+    ad,
+    cell_ids,
+    nrows=1,
+    bp_key="metric_branch_probs",
+    save_path=None,
+    figsize=None,
+    save_kwargs={},
+    color_map=None,
+    tick_map=None,
+    **bp_kwargs,
+):
+    ncols = math.ceil(len(cell_ids) / nrows)
+    fig, ax = plt.subplots(
+        nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=figsize
+    )
+    branch_probs = ad.obsm[bp_key]
+    cell_idx = 0
+
+    for row_idx in range(nrows):
+        for col_idx in range(ncols):
+            if nrows == 1 and ncols == 1:
+                axes = ax
+            elif nrows == 1:
+                axes = ax[col_idx]
+            elif ncols == 1:
+                axes = ax[row_idx]
+            else:
+                axes = ax[row_idx, col_idx]
+
+            cell_id = cell_ids[cell_idx]
+            cell_bp = branch_probs.loc[cell_id, :]
+
+            color = None
+            if color_map is not None:
+                color = [color_map[ts] for ts in cell_bp.index]
+
+            # Barplot of probs
+            x = np.arange(cell_bp.shape[-1])
+            axes.bar(x, cell_bp, color=color, **bp_kwargs)
+
+            # Remove the right and top axes
+            axes.spines["right"].set_visible(False)
+            axes.spines["top"].set_visible(False)
+
+            # Set Ticks
+            axes.set_xticks(x)
+            ticks = []
+
+            if tick_map is not None:
+                ticks = [tick_map[t_cell_id] for t_cell_id in cell_bp.index]
+            axes.set_xticklabels(ticks, rotation=45)
+
+            cell_idx += 1
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+    plt.show()
+
+
+def plot_dp_vs_pseudotime(
+    ad,
+    lineage,
+    comms_key="metric_clusters",
+    pt_key="metric_pseudotime_v2",
+    dp_key="metric_dp",
+    lineage_color_map=None,
+    show_label=True,
+    figsize=None,
+    save_path=None,
+    save_kwargs={},
+    **kwargs,
+):
+    lineage_cell_ids = []
+    colors = []
+    comms = ad.obs[comms_key]
+
+    for cluster_id in lineage:
+        assert cluster_id in np.unique(comms)
+        cell_ids = list(comms.index[comms == cluster_id])
+        lineage_cell_ids.extend(cell_ids)
+
+        # Add cell colors
+        if lineage_color_map is not None:
+            cluster_color = lineage_color_map[cluster_id]
+            colors.extend([cluster_color] * len(cell_ids))
+
+    dp = ad.obs[dp_key]
+    pt = ad.obs[pt_key]
+
+    lineage_pt = list(pt.loc[lineage_cell_ids])
+    lineage_dp = list(dp.loc[lineage_cell_ids])
+
+    # Display
+    plt.figure(figsize=figsize)
+    plt.scatter(lineage_pt, lineage_dp, s=1, c=colors, **kwargs)
+
+    # Remove the right and top axes
+    ax = plt.gca()
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+
+    # Set labels
+    if show_label:
+        ax.set_xlabel("Pseudotime")
+        ax.set_ylabel("Differentiation Potential")
+
+    # Save
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()

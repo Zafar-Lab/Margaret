@@ -10,6 +10,7 @@ import scipy
 import umap
 
 from matplotlib import cm
+from matplotlib.text import Annotation
 from sklearn.manifold import TSNE
 
 from models.ti.graph import (
@@ -49,33 +50,55 @@ def plot_embeddings(
     show_legend=False,
     show_colorbar=False,
     axis_off=True,
+    hover_labels=None,
     labels=None,
     legend_kwargs={},
     cb_axes_pos=None,
     cb_kwargs={},
     save_kwargs={},
+    picker=False,
     **kwargs,
 ):
+    def annotate(axis, text, x, y):
+        text_annotation = Annotation(text, xy=(x, y), xycoords="data")
+        axis.add_artist(text_annotation)
+
+    def onpick(event):
+        ind = event.ind
+
+        label_pos_x = event.mouseevent.xdata
+        label_pos_y = event.mouseevent.ydata
+
+        # Take only the first of many indices returned
+        label = X[ind[0], :]
+        if hover_labels is not None:
+            label = hover_labels[ind[0]]
+
+        # Create Text annotation
+        annotate(ax, label, label_pos_x, label_pos_y)
+
+        # Redraw the figure
+        ax.figure.canvas.draw_idle()
+
     assert X.shape[-1] == 2
 
     # Set figsize
     fig = plt.figure(figsize=figsize)
+    ax = plt.gca()
 
     # Set title (if set)
     if title is not None:
         plt.title(title)
 
     # Plot
-    scatter = plt.scatter(X[:, 0], X[:, 1], **kwargs)
+    scatter = ax.scatter(X[:, 0], X[:, 1], picker=picker, **kwargs)
 
     if show_legend:
         if labels is None:
             raise ValueError("labels must be provided when plotting legend")
 
         # Create legend
-        legend = plt.gca().legend(
-            *scatter.legend_elements(num=len(labels)), **legend_kwargs
-        )
+        legend = ax.legend(*scatter.legend_elements(num=len(labels)), **legend_kwargs)
 
         # Replace default labels with the provided labels
         text = legend.get_texts()
@@ -83,16 +106,20 @@ def plot_embeddings(
 
         for t, label in zip(text, labels):
             t.set_text(label)
-        plt.gca().add_artist(legend)
+        ax.add_artist(legend)
 
     if axis_off:
-        plt.gca().set_axis_off()
+        ax.set_axis_off()
 
     if show_colorbar:
         cax = None
         if cb_axes_pos is not None:
             cax = fig.add_axes(cb_axes_pos)
         plt.colorbar(scatter, cax=cax, **cb_kwargs)
+
+    # Pick Event handling (useful for selecting start cells)
+    if picker is True:
+        fig.canvas.mpl_connect("pick_event", onpick)
 
     # Save
     if save_path is not None:
@@ -301,8 +328,8 @@ def plot_clusters(
 
 def plot_pseudotime(
     adata,
-    embedding_key="X_embedded",
-    pseudotime_key="X_pseudotime",
+    embedding_key="X_met_embedding",
+    pseudotime_key="metric_pseudotime_v2",
     cmap=None,
     figsize=None,
     cb_axes_pos=None,

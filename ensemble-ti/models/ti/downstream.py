@@ -1,10 +1,11 @@
 import networkx as nx
 import numpy as np
+from numpy.linalg.linalg import LinAlgError
 import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
-from numpy.linalg import inv
+from numpy.linalg import inv, pinv
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import find, csr_matrix
 from scipy.stats import entropy
@@ -387,7 +388,11 @@ def _differentiation_entropy(
     Q = T[trans_states, :][:, trans_states]
     # Fundamental matrix
     mat = np.eye(Q.shape[0]) - Q.todense()
-    N = inv(mat)
+    try:
+        N = inv(mat)
+    except LinAlgError:
+        # Compute the pseudoinverse if the main inv cannot be computed
+        N = pinv(mat)
 
     # Absorption probabilities
     branch_probs = np.dot(N, T[trans_states, :][:, abs_states].todense())

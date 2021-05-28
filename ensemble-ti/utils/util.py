@@ -6,6 +6,7 @@ import time
 
 from functools import wraps
 from scipy.sparse.csgraph import dijkstra
+from scipy.sparse import csr_matrix
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import pairwise_distances
@@ -82,6 +83,8 @@ def log_transform(data, pseudo_count=1):
         pseudo_count (int, optional): [description]. Defaults to 1.
     """
     if type(data) is sc.AnnData:
+        if isinstance(data.X, csr_matrix):
+            data.X = data.X.todense()
         data.X = np.log2(data.X + pseudo_count) - np.log2(pseudo_count)
     else:
         return np.log2(data + pseudo_count) - np.log2(pseudo_count)

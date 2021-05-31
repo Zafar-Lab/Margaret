@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import phate
 import pygam as pg
+import scanpy as sc
 import scipy
 import umap
 
@@ -842,3 +843,77 @@ def plot_dp_vs_pseudotime(
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
+
+
+def plot_de_comparison(
+    ad,
+    id1,
+    id2,
+    comm_key="metric_clusters",
+    groupby_key="clusters",
+    n_genes=25,
+    rank_kwargs={},
+    **kwargs,
+):
+    comms = ad.obs[comm_key]
+    clusters = np.unique(comms)
+
+    # Checks!
+    if id1 not in clusters:
+        raise ValueError(f"Cluster {id1} not found in the parent anndata object")
+
+    if id2 not in clusters:
+        raise ValueError(f"Cluster {id2} not found in the parent anndata object")
+
+    # Aggregate cells from the 2 clusters
+    cells_id1 = list(comms.index[comms == id1])
+    cells_id2 = list(comms.index[comms == id2])
+
+    cell_ids = cells_id1 + cells_id2
+    cells_gene_expr = ad.to_df().loc[cell_ids, :]
+
+    # New anndata object
+    ad2 = sc.AnnData(cells_gene_expr)
+    ad2.obs_names = cell_ids
+    ad2.var_names = ad.var_names
+
+    clusters = pd.Series(index=ad2.obs_names)
+    clusters.loc[cells_id1] = str(id1)
+    clusters.loc[cells_id2] = str(id2)
+
+    ad2.obs[groupby_key] = clusters.astype("category")
+
+    # DE analysis
+    key1 = f"{id1}v{id2}"
+    key2 = f"{id2}v{id1}"
+    sc.tl.rank_genes_groups(
+        ad2,
+        groupby_key,
+        method="wilcoxon",
+        key_added=key1,
+        reference=str(id2),
+        **rank_kwargs,
+    )
+    sc.tl.rank_genes_groups(
+        ad2,
+        groupby_key,
+        method="wilcoxon",
+        key_added=key2,
+        reference=str(id1),
+        **rank_kwargs,
+    )
+
+    vars1 = [gene_id[0] for gene_id in ad2.uns[key1]["names"]][:n_genes]
+    vars2 = [gene_id[0] for gene_id in ad2.uns[key2]["names"]][:n_genes]
+
+    vars = {str(id1): vars1, str(id2): vars2}
+
+    # Heatmap
+    sc.pl.heatmap(
+        ad2,
+        var_names=vars,
+        groupby=groupby_key,
+        standard_scale="var",
+        show_gene_labels=True,
+        **kwargs,
+    )

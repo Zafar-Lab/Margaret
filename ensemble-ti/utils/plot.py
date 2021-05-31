@@ -6,10 +6,12 @@ import numpy as np
 import pandas as pd
 import phate
 import pygam as pg
+import scanpy as sc
 import scipy
 import umap
 
 from matplotlib import cm
+from matplotlib.text import Annotation
 from sklearn.manifold import TSNE
 
 from models.ti.graph import (
@@ -49,33 +51,55 @@ def plot_embeddings(
     show_legend=False,
     show_colorbar=False,
     axis_off=True,
+    hover_labels=None,
     labels=None,
     legend_kwargs={},
     cb_axes_pos=None,
     cb_kwargs={},
     save_kwargs={},
+    picker=False,
     **kwargs,
 ):
+    def annotate(axis, text, x, y):
+        text_annotation = Annotation(text, xy=(x, y), xycoords="data")
+        axis.add_artist(text_annotation)
+
+    def onpick(event):
+        ind = event.ind
+
+        label_pos_x = event.mouseevent.xdata
+        label_pos_y = event.mouseevent.ydata
+
+        # Take only the first of many indices returned
+        label = X[ind[0], :]
+        if hover_labels is not None:
+            label = hover_labels[ind[0]]
+
+        # Create Text annotation
+        annotate(ax, label, label_pos_x, label_pos_y)
+
+        # Redraw the figure
+        ax.figure.canvas.draw_idle()
+
     assert X.shape[-1] == 2
 
     # Set figsize
     fig = plt.figure(figsize=figsize)
+    ax = plt.gca()
 
     # Set title (if set)
     if title is not None:
         plt.title(title)
 
     # Plot
-    scatter = plt.scatter(X[:, 0], X[:, 1], **kwargs)
+    scatter = ax.scatter(X[:, 0], X[:, 1], picker=picker, **kwargs)
 
     if show_legend:
         if labels is None:
             raise ValueError("labels must be provided when plotting legend")
 
         # Create legend
-        legend = plt.gca().legend(
-            *scatter.legend_elements(num=len(labels)), **legend_kwargs
-        )
+        legend = ax.legend(*scatter.legend_elements(num=len(labels)), **legend_kwargs)
 
         # Replace default labels with the provided labels
         text = legend.get_texts()
@@ -83,16 +107,20 @@ def plot_embeddings(
 
         for t, label in zip(text, labels):
             t.set_text(label)
-        plt.gca().add_artist(legend)
+        ax.add_artist(legend)
 
     if axis_off:
-        plt.gca().set_axis_off()
+        ax.set_axis_off()
 
     if show_colorbar:
         cax = None
         if cb_axes_pos is not None:
             cax = fig.add_axes(cb_axes_pos)
         plt.colorbar(scatter, cax=cax, **cb_kwargs)
+
+    # Pick Event handling (useful for selecting start cells)
+    if picker is True:
+        fig.canvas.mpl_connect("pick_event", onpick)
 
     # Save
     if save_path is not None:
@@ -102,7 +130,7 @@ def plot_embeddings(
 
 def plot_boxplot_expression(
     ad,
-    genes,
+    groups,
     order=None,
     cluster_key="metric_clusters",
     imputation_key=None,
@@ -132,20 +160,28 @@ def plot_boxplot_expression(
     plt.figure(figsize=figsize)
     ax = plt.gca()
 
-    for id, gene in enumerate(genes):
-        if gene not in ad.var_names:
-            print(f"Gene {gene} not found. Skipping")
-            continue
-
+    for id, (g_id, genes) in enumerate(groups.items()):
         data = []
         for cluster_id in order:
             ids = communities == cluster_id
 
             # Create the boxplot
-            gene_expr = data_.loc[ids, gene]
-            data.append(gene_expr)
+            expr_ = []
+            for gene in genes:
+                if gene not in ad.var_names:
+                    print(f"Gene {gene} not found. Skipping")
+                    continue
+                gene_expr = list(data_.loc[ids, gene])
+                expr_.extend(gene_expr)
+            data.append(expr_)
 
-        box = plt.boxplot(data, labels=order, patch_artist=True, **kwargs)
+        box = plt.boxplot(
+            data,
+            positions=np.arange(len(order)),
+            labels=order,
+            patch_artist=True,
+            **kwargs,
+        )
 
         # Facecolor for a gene will be same
         if colors is not None:
@@ -301,8 +337,8 @@ def plot_clusters(
 
 def plot_pseudotime(
     adata,
-    embedding_key="X_embedded",
-    pseudotime_key="X_pseudotime",
+    embedding_key="X_met_embedding",
+    pseudotime_key="metric_pseudotime_v2",
     cmap=None,
     figsize=None,
     cb_axes_pos=None,
@@ -815,3 +851,77 @@ def plot_dp_vs_pseudotime(
     if save_path is not None:
         plt.savefig(save_path, **save_kwargs)
     plt.show()
+
+
+def plot_de_comparison(
+    ad,
+    id1,
+    id2,
+    comm_key="metric_clusters",
+    groupby_key="clusters",
+    n_genes=25,
+    rank_kwargs={},
+    **kwargs,
+):
+    comms = ad.obs[comm_key]
+    clusters = np.unique(comms)
+
+    # Checks!
+    if id1 not in clusters:
+        raise ValueError(f"Cluster {id1} not found in the parent anndata object")
+
+    if id2 not in clusters:
+        raise ValueError(f"Cluster {id2} not found in the parent anndata object")
+
+    # Aggregate cells from the 2 clusters
+    cells_id1 = list(comms.index[comms == id1])
+    cells_id2 = list(comms.index[comms == id2])
+
+    cell_ids = cells_id1 + cells_id2
+    cells_gene_expr = ad.to_df().loc[cell_ids, :]
+
+    # New anndata object
+    ad2 = sc.AnnData(cells_gene_expr)
+    ad2.obs_names = cell_ids
+    ad2.var_names = ad.var_names
+
+    clusters = pd.Series(index=ad2.obs_names)
+    clusters.loc[cells_id1] = str(id1)
+    clusters.loc[cells_id2] = str(id2)
+
+    ad2.obs[groupby_key] = clusters.astype("category")
+
+    # DE analysis
+    key1 = f"{id1}v{id2}"
+    key2 = f"{id2}v{id1}"
+    sc.tl.rank_genes_groups(
+        ad2,
+        groupby_key,
+        method="wilcoxon",
+        key_added=key1,
+        reference=str(id2),
+        **rank_kwargs,
+    )
+    sc.tl.rank_genes_groups(
+        ad2,
+        groupby_key,
+        method="wilcoxon",
+        key_added=key2,
+        reference=str(id1),
+        **rank_kwargs,
+    )
+
+    vars1 = [gene_id[0] for gene_id in ad2.uns[key1]["names"]][:n_genes]
+    vars2 = [gene_id[0] for gene_id in ad2.uns[key2]["names"]][:n_genes]
+
+    vars = {str(id1): vars1, str(id2): vars2}
+
+    # Heatmap
+    sc.pl.heatmap(
+        ad2,
+        var_names=vars,
+        groupby=groupby_key,
+        standard_scale="var",
+        show_gene_labels=True,
+        **kwargs,
+    )

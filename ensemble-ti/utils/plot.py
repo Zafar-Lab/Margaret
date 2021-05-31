@@ -130,7 +130,7 @@ def plot_embeddings(
 
 def plot_boxplot_expression(
     ad,
-    genes,
+    groups,
     order=None,
     cluster_key="metric_clusters",
     imputation_key=None,
@@ -160,20 +160,28 @@ def plot_boxplot_expression(
     plt.figure(figsize=figsize)
     ax = plt.gca()
 
-    for id, gene in enumerate(genes):
-        if gene not in ad.var_names:
-            print(f"Gene {gene} not found. Skipping")
-            continue
-
+    for id, (g_id, genes) in enumerate(groups.items()):
         data = []
         for cluster_id in order:
             ids = communities == cluster_id
 
             # Create the boxplot
-            gene_expr = data_.loc[ids, gene]
-            data.append(gene_expr)
+            expr_ = []
+            for gene in genes:
+                if gene not in ad.var_names:
+                    print(f"Gene {gene} not found. Skipping")
+                    continue
+                gene_expr = list(data_.loc[ids, gene])
+                expr_.extend(gene_expr)
+            data.append(expr_)
 
-        box = plt.boxplot(data, labels=order, patch_artist=True, **kwargs)
+        box = plt.boxplot(
+            data,
+            positions=np.arange(len(order)),
+            labels=order,
+            patch_artist=True,
+            **kwargs,
+        )
 
         # Facecolor for a gene will be same
         if colors is not None:

@@ -1,9 +1,12 @@
 import csv
 import os
+import networkx as nx
+import pandas as pd
 import scanpy as sc
 
-from core import run_metti, run_paga, run_palantir, run_metti_v2
 from IPython.display import clear_output
+
+from core import run_metti, run_paga, run_palantir, run_metti_v2
 from metrics.ipsen import IpsenMikhailov
 from metrics.ordering import compute_ranking_correlation
 from models.ti.graph import compute_gt_milestone_network
@@ -32,8 +35,6 @@ def evaluate_metric_topology(
         reader = csv.DictReader(fp)
         datasets = {row["name"]: row["path"] for row in reader}
 
-    results = {}
-
     for backend in c_backends:
         r = pd.DataFrame(index=datasets.keys())
         for name, path in datasets.items():
@@ -51,11 +52,6 @@ def evaluate_metric_topology(
                 )
 
                 ad = sc.read(path)
-                try:
-                    # In case the anndata object has scipy.sparse graphs
-                    ad.X = ad.X.todense()
-                except:
-                    pass
 
                 # Preprocessing using Seurat like parameters
                 min_expr_level = 0
@@ -123,10 +119,17 @@ def evaluate_metric_topology(
                     dataset_path, backend, str(resolution), "plots"
                 )
                 os.makedirs(plot_path, exist_ok=True)
+
+                save_kwargs = {
+                    "dpi": 300,
+                    "bbox_inches": "tight",
+                    "transparent": True
+                }
                 plot_embeddings(
                     preprocessed_data.obsm["metric_viz_embedding"],
                     save_path=os.path.join(plot_path, "embedding.png"),
                     title=f"embedding_{backend}_{resolution}",
+                    save_kwargs=save_kwargs,
                 )
                 # Plot clusters
                 plot_clusters(
@@ -136,6 +139,7 @@ def evaluate_metric_topology(
                     cmap="plasma",
                     title=f"clusters_{backend}_{resolution}",
                     save_path=os.path.join(plot_path, "clusters.png"),
+                    save_kwargs=save_kwargs,
                 )
 
                 # Plot graphs
@@ -159,6 +163,7 @@ def evaluate_metric_topology(
                     mode="undirected",
                     title=f"undirected_{backend}_{resolution}",
                     save_path=os.path.join(plot_path, "undirected.png"),
+                    save_kwargs=save_kwargs,
                 )
 
                 if metti_version == "v1":
@@ -172,6 +177,7 @@ def evaluate_metric_topology(
                         start_cluster_ids,
                         title=f"directed_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "directed.png"),
+                        save_kwargs=save_kwargs,
                     )
 
                     # Plot pseudotime
@@ -182,6 +188,7 @@ def evaluate_metric_topology(
                         cmap="plasma",
                         title=f"pseudotime_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "pseudotime.png"),
+                        save_kwargs=save_kwargs,
                     )
                 else:
                     plot_pseudotime(
@@ -191,18 +198,20 @@ def evaluate_metric_topology(
                         cmap="plasma",
                         title=f"pseudotime_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "pseudotime.png"),
+                        save_kwargs=save_kwargs,
                     )
 
-                    plot_trajectory_graph_v2(
-                        preprocessed_data.obs["metric_pseudotime_v2"],
-                        nx.to_pandas_adjacency(
-                            preprocessed_data.uns["metric_undirected_graph"]
-                        ),
-                        preprocessed_data.obs["metric_clusters"],
-                        preprocessed_data.uns["metric_undirected_node_positions"],
-                        title=f"directed_{backend}_{resolution}",
-                        save_path=os.path.join(plot_path, "directed.png"),
-                    )
+                    # plot_trajectory_graph_v2(
+                    #     preprocessed_data.obs["metric_pseudotime_v2"],
+                    #     nx.to_pandas_adjacency(
+                    #         preprocessed_data.uns["metric_undirected_graph"]
+                    #     ),
+                    #     preprocessed_data.obs["metric_clusters"],
+                    #     preprocessed_data.uns["metric_undirected_node_positions"],
+                    #     title=f"directed_{backend}_{resolution}",
+                    #     save_path=os.path.join(plot_path, "directed.png"),
+                    #     save_kwargs=save_kwargs,
+                    # )
 
                 # Compute IM distance
                 im = IpsenMikhailov()
@@ -210,7 +219,7 @@ def evaluate_metric_topology(
                     preprocessed_data, mode="undirected"
                 )
                 net2 = preprocessed_data.uns["metric_undirected_graph"]
-                r.loc[name, f"IM@{resolution}"] = im(net1, net2)
+                r.loc[name, f"IM@{resolution}"] = round(im(net1, net2), 3)
 
                 # Compute pseudotime
                 gt_pseudotime = preprocessed_data.uns["timecourse"].reindex(
@@ -224,11 +233,10 @@ def evaluate_metric_topology(
                 res = compute_ranking_correlation(
                     gt_pseudotime, preprocessed_data.obs[pseudotime_key]
                 )
-                r.loc[name, f"KT@{resolution}"] = res["kendall"][0]
-                r.loc[name, f"WKT@{resolution}"] = res["weighted_kendall"][0]
-                r.loc[name, f"SR@{resolution}"] = res["spearman"][0]
+                r.loc[name, f"KT@{resolution}"] = round(res["kendall"][0], 3)
+                r.loc[name, f"SR@{resolution}"] = round(res["spearman"][0], 3)
                 clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f"metric_{backend}_results.pkl"))
+        r.to_csv(os.path.join(results_dir, f"metric_{backend}_results.csv"))
 
 
 def evaluate_paga_topology(
@@ -243,15 +251,11 @@ def evaluate_paga_topology(
         reader = csv.DictReader(fp)
         datasets = {row["name"]: row["path"] for row in reader}
 
-    results = {}
-
     for backend in c_backends:
         r = pd.DataFrame(index=datasets.keys())
         for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
-            chkpt_save_path = os.path.join(dataset_path, "checkpoint")
-
             os.makedirs(dataset_path, exist_ok=True)
 
             print(f"Evaluating dataset: {name} at path: {path}...")
@@ -261,13 +265,8 @@ def evaluate_paga_topology(
                     f"\nRunning {backend} for dataset: {name} at resolution: {resolution}"
                 )
                 ad = sc.read(path)
-                try:
-                    # In case the anndata object has scipy.sparse graphs
-                    ad.X = ad.X.todense()
-                except:
-                    pass
 
-                # Preprocessing using Seurat like parameters
+                # Preprocessing using Seurat like recipe
                 min_expr_level = 0
                 min_cells = 3
                 use_hvg = False
@@ -288,22 +287,20 @@ def evaluate_paga_topology(
                     if isinstance(start_cell_ids, str)
                     else list(start_cell_ids)
                 )
+                # Added here as sometimes PAGA plot throws error when applied on preprocessed data
                 try:
                     run_paga(
-                        ad,
+                        preprocessed_data,
                         start_cell_ids[-1],
                         c_backend=backend,
                         neighbor_kwargs={"random_state": 0, "n_neighbors": 50},
                         cluster_kwargs={"random_state": 0, "resolution": resolution},
                     )
                     # Plot the PAGA graph
-                    # Added here as sometimes PAGA plot throws error when applied on preprocessed data
                     plot_path = os.path.join(dataset_path, backend, str(resolution))
                     os.makedirs(plot_path, exist_ok=True)
                     os.chdir(plot_path)
-                    sc.pl.paga(
-                        ad, save="_graph.png", title=f"PAGA_{backend}_{resolution}"
-                    )
+                    sc.pl.paga(preprocessed_data, save="_graph.png")
                 except:
                     print(
                         f"PAGA run failed for dataset: {name}@{resolution}. Skipping writing results for this conf"
@@ -313,19 +310,20 @@ def evaluate_paga_topology(
                 # Compute IM distance
                 im = IpsenMikhailov()
                 net1 = compute_gt_milestone_network(ad, mode="undirected")
-                net2 = nx.from_scipy_sparse_matrix(ad.uns["paga"]["connectivities"])
-                r.loc[name, f"IM@{resolution}"] = im(net1, net2)
+                net2 = nx.from_scipy_sparse_matrix(
+                    preprocessed_data.uns["paga"]["connectivities"]
+                )
+                r.loc[name, f"IM@{resolution}"] = round(im(net1, net2), 3)
 
                 # Compute pseudotime
                 gt_pseudotime = ad.uns["timecourse"].reindex(ad.obs_names)
                 res = compute_ranking_correlation(
-                    gt_pseudotime, ad.obs["dpt_pseudotime"]
+                    gt_pseudotime, preprocessed_data.obs["dpt_pseudotime"]
                 )
-                r.loc[name, f"KT@{resolution}"] = res["kendall"][0]
-                r.loc[name, f"WKT@{resolution}"] = res["weighted_kendall"][0]
-                r.loc[name, f"SR@{resolution}"] = res["spearman"][0]
+                r.loc[name, f"KT@{resolution}"] = round(res["kendall"][0], 3)
+                r.loc[name, f"SR@{resolution}"] = round(res["spearman"][0], 3)
                 clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f"PAGA_{backend}_results.pkl"))
+        r.to_csv(os.path.join(results_dir, f"PAGA_{backend}_results.csv"))
 
 
 def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
@@ -340,7 +338,6 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
         for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
-            chkpt_save_path = os.path.join(dataset_path, "checkpoint")
 
             os.makedirs(dataset_path, exist_ok=True)
 
@@ -375,8 +372,7 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
             # Compute pseudotime
             gt_pseudotime = ad.uns["timecourse"].reindex(ad.obs_names)
             res = compute_ranking_correlation(gt_pseudotime, presults.pseudotime)
-            r.loc[name, f"KT"] = res["kendall"][0]
-            r.loc[name, f"WKT"] = res["weighted_kendall"][0]
-            r.loc[name, f"SR"] = res["spearman"][0]
+            r.loc[name, "KT"] = round(res["kendall"][0], 3)
+            r.loc[name, "SR"] = round(res["spearman"][0], 3)
             clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f"palantir_pseudotime_results.pkl"))
+        r.to_csv(os.path.join(results_dir, "palantir_pseudotime_results.csv"))

@@ -6,7 +6,7 @@ import time
 
 from functools import wraps
 from scipy.sparse.csgraph import dijkstra
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, csc_matrix
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import pairwise_distances
@@ -48,6 +48,15 @@ def preprocess_recipe(
         [sc.AnnData]: Preprocessed copy of the input annotated data object
     """
     preprocessed_data = adata.copy()
+
+    # Some type conversion!
+    if isinstance(preprocessed_data.X, csr_matrix) or isinstance(
+        preprocessed_data.X, csc_matrix
+    ):
+        preprocessed_data.X = preprocessed_data.X.todense()
+    if isinstance(preprocessed_data.X, np.matrix):
+        preprocessed_data.X = np.asarray(preprocessed_data.X)
+
     print("Preprocessing....")
 
     if min_expr_level is not None:
@@ -83,8 +92,6 @@ def log_transform(data, pseudo_count=1):
         pseudo_count (int, optional): [description]. Defaults to 1.
     """
     if type(data) is sc.AnnData:
-        if isinstance(data.X, csr_matrix):
-            data.X = data.X.todense()
         data.X = np.log2(data.X + pseudo_count) - np.log2(pseudo_count)
     else:
         return np.log2(data + pseudo_count) - np.log2(pseudo_count)

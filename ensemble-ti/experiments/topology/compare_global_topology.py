@@ -5,7 +5,6 @@ import pandas as pd
 import scanpy as sc
 
 from IPython.display import clear_output
-from scipy.sparse import csr_matrix
 
 from core import run_metti, run_paga, run_palantir, run_metti_v2
 from metrics.ipsen import IpsenMikhailov
@@ -36,8 +35,6 @@ def evaluate_metric_topology(
         reader = csv.DictReader(fp)
         datasets = {row["name"]: row["path"] for row in reader}
 
-    results = {}
-
     for backend in c_backends:
         r = pd.DataFrame(index=datasets.keys())
         for name, path in datasets.items():
@@ -55,11 +52,6 @@ def evaluate_metric_topology(
                 )
 
                 ad = sc.read(path)
-                try:
-                    # In case the anndata object has scipy.sparse graphs
-                    ad.X = ad.X.todense()
-                except:
-                    pass
 
                 # Preprocessing using Seurat like parameters
                 min_expr_level = 0
@@ -127,10 +119,15 @@ def evaluate_metric_topology(
                     dataset_path, backend, str(resolution), "plots"
                 )
                 os.makedirs(plot_path, exist_ok=True)
+
+                save_kwargs = (
+                    {"dpi": 300, "bbox_inches": "tight", "transparent": True},
+                )
                 plot_embeddings(
                     preprocessed_data.obsm["metric_viz_embedding"],
                     save_path=os.path.join(plot_path, "embedding.png"),
                     title=f"embedding_{backend}_{resolution}",
+                    save_kwargs=save_kwargs,
                 )
                 # Plot clusters
                 plot_clusters(
@@ -140,6 +137,7 @@ def evaluate_metric_topology(
                     cmap="plasma",
                     title=f"clusters_{backend}_{resolution}",
                     save_path=os.path.join(plot_path, "clusters.png"),
+                    save_kwargs=save_kwargs,
                 )
 
                 # Plot graphs
@@ -163,6 +161,7 @@ def evaluate_metric_topology(
                     mode="undirected",
                     title=f"undirected_{backend}_{resolution}",
                     save_path=os.path.join(plot_path, "undirected.png"),
+                    save_kwargs=save_kwargs,
                 )
 
                 if metti_version == "v1":
@@ -176,6 +175,7 @@ def evaluate_metric_topology(
                         start_cluster_ids,
                         title=f"directed_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "directed.png"),
+                        save_kwargs=save_kwargs,
                     )
 
                     # Plot pseudotime
@@ -186,6 +186,7 @@ def evaluate_metric_topology(
                         cmap="plasma",
                         title=f"pseudotime_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "pseudotime.png"),
+                        save_kwargs=save_kwargs,
                     )
                 else:
                     plot_pseudotime(
@@ -195,6 +196,7 @@ def evaluate_metric_topology(
                         cmap="plasma",
                         title=f"pseudotime_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "pseudotime.png"),
+                        save_kwargs=save_kwargs,
                     )
 
                     plot_trajectory_graph_v2(
@@ -206,6 +208,7 @@ def evaluate_metric_topology(
                         preprocessed_data.uns["metric_undirected_node_positions"],
                         title=f"directed_{backend}_{resolution}",
                         save_path=os.path.join(plot_path, "directed.png"),
+                        save_kwargs=save_kwargs,
                     )
 
                 # Compute IM distance
@@ -228,11 +231,10 @@ def evaluate_metric_topology(
                 res = compute_ranking_correlation(
                     gt_pseudotime, preprocessed_data.obs[pseudotime_key]
                 )
-                r.loc[name, f"KT@{resolution}"] = res["kendall"][0]
-                r.loc[name, f"WKT@{resolution}"] = res["weighted_kendall"][0]
-                r.loc[name, f"SR@{resolution}"] = res["spearman"][0]
+                r.loc[name, f"KT@{resolution}"] = round(res["kendall"][0], 3)
+                r.loc[name, f"SR@{resolution}"] = round(res["spearman"][0], 3)
                 clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f"metric_{backend}_results.pkl"))
+        r.to_csv(os.path.join(results_dir, f"metric_{backend}_results.csv"))
 
 
 def evaluate_paga_topology(

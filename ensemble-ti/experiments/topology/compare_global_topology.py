@@ -120,9 +120,11 @@ def evaluate_metric_topology(
                 )
                 os.makedirs(plot_path, exist_ok=True)
 
-                save_kwargs = (
-                    {"dpi": 300, "bbox_inches": "tight", "transparent": True},
-                )
+                save_kwargs = {
+                    "dpi": 300,
+                    "bbox_inches": "tight",
+                    "transparent": True
+                }
                 plot_embeddings(
                     preprocessed_data.obsm["metric_viz_embedding"],
                     save_path=os.path.join(plot_path, "embedding.png"),
@@ -199,17 +201,17 @@ def evaluate_metric_topology(
                         save_kwargs=save_kwargs,
                     )
 
-                    plot_trajectory_graph_v2(
-                        preprocessed_data.obs["metric_pseudotime_v2"],
-                        nx.to_pandas_adjacency(
-                            preprocessed_data.uns["metric_undirected_graph"]
-                        ),
-                        preprocessed_data.obs["metric_clusters"],
-                        preprocessed_data.uns["metric_undirected_node_positions"],
-                        title=f"directed_{backend}_{resolution}",
-                        save_path=os.path.join(plot_path, "directed.png"),
-                        save_kwargs=save_kwargs,
-                    )
+                    # plot_trajectory_graph_v2(
+                    #     preprocessed_data.obs["metric_pseudotime_v2"],
+                    #     nx.to_pandas_adjacency(
+                    #         preprocessed_data.uns["metric_undirected_graph"]
+                    #     ),
+                    #     preprocessed_data.obs["metric_clusters"],
+                    #     preprocessed_data.uns["metric_undirected_node_positions"],
+                    #     title=f"directed_{backend}_{resolution}",
+                    #     save_path=os.path.join(plot_path, "directed.png"),
+                    #     save_kwargs=save_kwargs,
+                    # )
 
                 # Compute IM distance
                 im = IpsenMikhailov()
@@ -217,7 +219,7 @@ def evaluate_metric_topology(
                     preprocessed_data, mode="undirected"
                 )
                 net2 = preprocessed_data.uns["metric_undirected_graph"]
-                r.loc[name, f"IM@{resolution}"] = im(net1, net2)
+                r.loc[name, f"IM@{resolution}"] = round(im(net1, net2), 3)
 
                 # Compute pseudotime
                 gt_pseudotime = preprocessed_data.uns["timecourse"].reindex(
@@ -336,7 +338,6 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
         for name, path in datasets.items():
             # Setup directory per dataset for the experiment
             dataset_path = os.path.join(results_dir, name)
-            chkpt_save_path = os.path.join(dataset_path, "checkpoint")
 
             os.makedirs(dataset_path, exist_ok=True)
 
@@ -371,8 +372,7 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
             # Compute pseudotime
             gt_pseudotime = ad.uns["timecourse"].reindex(ad.obs_names)
             res = compute_ranking_correlation(gt_pseudotime, presults.pseudotime)
-            r.loc[name, f"KT"] = res["kendall"][0]
-            r.loc[name, f"WKT"] = res["weighted_kendall"][0]
-            r.loc[name, f"SR"] = res["spearman"][0]
+            r.loc[name, "KT"] = round(res["kendall"][0], 3)
+            r.loc[name, "SR"] = round(res["spearman"][0], 3)
             clear_output(wait=True)
-        r.to_pickle(os.path.join(results_dir, f"palantir_pseudotime_results.pkl"))
+        r.to_csv(os.path.join(results_dir, "palantir_pseudotime_results.csv"))

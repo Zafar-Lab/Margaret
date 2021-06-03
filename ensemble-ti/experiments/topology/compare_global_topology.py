@@ -17,7 +17,14 @@ from utils.util import (
     run_pca,
     get_start_cell_cluster_id,
 )
-from utils.plot import *
+from utils.plot import (
+    plot_embeddings,
+    plot_clusters,
+    plot_connectivity_graph,
+    plot_trajectory_graph,
+    plot_pseudotime,
+    generate_plot_embeddings,
+)
 
 
 def evaluate_metric_topology(

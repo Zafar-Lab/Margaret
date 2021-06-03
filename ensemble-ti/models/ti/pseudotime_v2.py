@@ -3,7 +3,6 @@ import pandas as pd
 
 from scipy.sparse.csgraph import dijkstra
 from utils.util import (
-    get_start_cell_cluster_id,
     compute_runtime,
     prune_network_edges,
     connect_graph,
@@ -40,7 +39,7 @@ def compute_pseudotime(
     p = dijkstra(adj_dist_pruned.to_numpy(), indices=start_indices, min_only=True)
     pseudotime = pd.Series(p, index=ad.obs_names)
 
-    for c_idx, cluster in clusters.items():
+    for _, cluster in clusters.items():
         p_cluster = pseudotime.loc[cluster]
         cluster_start_cell = p_cluster.idxmin()
         adj_sc = adj_dist_pruned.loc[cluster, cluster]

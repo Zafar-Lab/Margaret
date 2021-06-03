@@ -1,6 +1,7 @@
 import csv
 import os
 import networkx as nx
+import numpy as np
 import pandas as pd
 import scanpy as sc
 
@@ -120,11 +121,7 @@ def evaluate_metric_topology(
                 )
                 os.makedirs(plot_path, exist_ok=True)
 
-                save_kwargs = {
-                    "dpi": 300,
-                    "bbox_inches": "tight",
-                    "transparent": True
-                }
+                save_kwargs = {"dpi": 300, "bbox_inches": "tight", "transparent": True}
                 plot_embeddings(
                     preprocessed_data.obsm["metric_viz_embedding"],
                     save_path=os.path.join(plot_path, "embedding.png"),
@@ -326,8 +323,7 @@ def evaluate_paga_topology(
         r.to_csv(os.path.join(results_dir, f"PAGA_{backend}_results.csv"))
 
 
-def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
-    # TODO: Add code to save embedding plots from Palantir
+def evaluate_palantir(dataset_file_path, results_dir=os.getcwd(), save_kwargs={}):
     # Read the dataset file
     datasets = {}
     with open(dataset_file_path, "r") as fp:
@@ -362,14 +358,34 @@ def evaluate_palantir(dataset_file_path, results_dir=os.getcwd()):
                 else list(start_cell_ids)
             )
             try:
-                presults = run_palantir(ad, start_cell_ids[-1])
-            except:
+                presults, ms_data = run_palantir(ad, start_cell_ids[-1])
+            except np.linalg.LinAlgError:
                 print(
                     f"Palantir run failed for dataset: {name}. Skipping writing results for this dataset"
                 )
                 continue
 
-            # Compute pseudotime
+            # Generate plots for tsne embedding and pseudotime
+            print("Generating plots!")
+            embed = generate_plot_embeddings(
+                ms_data, method="tsne", perplexity=150, random_state=0
+            )
+            embed_save_path = os.path.join(dataset_path, "embedding.png")
+            pt_save_path = os.path.join(dataset_path, "pt.png")
+            plot_embeddings(
+                embed, save_path=embed_save_path, s=1, save_kwargs=save_kwargs
+            )
+            plot_embeddings(
+                embed,
+                c=presults.pseudotime,
+                s=1,
+                save_path=pt_save_path,
+                cmap="plasma",
+                show_colorbar=True,
+                save_kwargs=save_kwargs,
+            )
+
+            # Compute pseudotime related metrics
             gt_pseudotime = ad.uns["timecourse"].reindex(ad.obs_names)
             res = compute_ranking_correlation(gt_pseudotime, presults.pseudotime)
             r.loc[name, "KT"] = round(res["kendall"][0], 3)

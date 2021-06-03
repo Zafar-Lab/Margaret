@@ -283,4 +283,4 @@ def run_palantir(ad, early_cell, knn=30):
 
     # Pseudotime and DP computation
     presults = palantir.core.run_palantir(ms_data, early_cell, knn=knn)
-    return presults
+    return presults, ms_data

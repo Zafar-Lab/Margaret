@@ -511,6 +511,8 @@ def plot_gt_milestone_network(
     figsize=(12, 12),
     node_size=800,
     font_size=9,
+    save_path=None,
+    save_kwargs={},
     **kwargs,
 ):
     # NOTE: Since the dyntoy tool does not provide the spatial position
@@ -557,6 +559,10 @@ def plot_gt_milestone_network(
         font_size=font_size,
         **kwargs,
     )
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
 
 def plot_lineage_trends(

@@ -469,11 +469,14 @@ def plot_connectivity_graph(
     embeddings,
     communities,
     cluster_connectivities,
+    start_cell_ids=None,
     mode="undirected",
     cmap="YlGn",
-    figsize=(16, 12),
-    node_size=400,
+    figsize=(12, 12),
+    node_size=800,
     font_color="black",
+    start_node_color=None,
+    node_color=None,
     title=None,
     save_path=None,
     save_kwargs={},
@@ -483,6 +486,22 @@ def plot_connectivity_graph(
     g, node_positions = compute_connectivity_graph(
         embeddings, communities, cluster_connectivities, mode=mode
     )
+
+    start_cell_ids = []
+    if start_cell_ids is not None:
+        start_cell_ids = start_cell_ids is isinstance(start_cell_ids, list) else [start_cell_ids]
+
+    start_cluster_ids = set([communities.loc[id] for id in start_cell_ids])
+
+    node_color = np.unique(communities)
+    if node_color is not None:
+        node_color = []
+        for c_id in np.unique(communities):
+            if c_id in start_cluster_ids and start_node_color is not None:
+                node_color.append(start_node_color)
+            else:
+                node_color.append(node_color)
+
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:

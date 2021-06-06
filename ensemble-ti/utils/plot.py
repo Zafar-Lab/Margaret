@@ -489,7 +489,9 @@ def plot_connectivity_graph(
 
     start_cell_ids = []
     if start_cell_ids is not None:
-        start_cell_ids = start_cell_ids is isinstance(start_cell_ids, list) else [start_cell_ids]
+        start_cell_ids = (
+            start_cell_ids if isinstance(start_cell_ids, list) else [start_cell_ids]
+        )
 
     start_cluster_ids = set([communities.loc[id] for id in start_cell_ids])
 

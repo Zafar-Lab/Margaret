@@ -431,11 +431,14 @@ def plot_trajectory_graph_v2(
     communities,
     d_connectivity,
     node_positions,
+    start_cell_ids=None,
     cmap="YlGn",
     figsize=(16, 12),
     node_size=400,
     font_color="black",
     title=None,
+    start_node_color=None,
+    node_color=None,
     save_path=None,
     save_kwargs={},
     offset=0,
@@ -445,6 +448,25 @@ def plot_trajectory_graph_v2(
         pseudotime, adj_cluster, communities, d_connectivity
     )
     g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
+
+    if start_cell_ids is not None:
+        start_cell_ids = (
+            start_cell_ids if isinstance(start_cell_ids, list) else [start_cell_ids]
+        )
+    else:
+        start_cell_ids = []
+
+    start_cluster_ids = set([communities.loc[id] for id in start_cell_ids])
+
+    colors = np.unique(communities)
+    if node_color is not None:
+        colors = []
+        for c_id in np.unique(communities):
+            if c_id in start_cluster_ids and start_node_color is not None:
+                colors.append(start_node_color)
+            else:
+                colors.append(node_color)
+
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:
@@ -455,7 +477,7 @@ def plot_trajectory_graph_v2(
         g,
         pos=node_positions,
         cmap=cmap,
-        node_color=np.unique(communities),
+        node_color=colors,
         font_color=font_color,
         node_size=node_size,
         width=edge_weights,

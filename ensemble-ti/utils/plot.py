@@ -469,11 +469,14 @@ def plot_connectivity_graph(
     embeddings,
     communities,
     cluster_connectivities,
+    start_cell_ids=None,
     mode="undirected",
     cmap="YlGn",
-    figsize=(16, 12),
-    node_size=400,
+    figsize=(12, 12),
+    node_size=800,
     font_color="black",
+    start_node_color=None,
+    node_color=None,
     title=None,
     save_path=None,
     save_kwargs={},
@@ -483,6 +486,25 @@ def plot_connectivity_graph(
     g, node_positions = compute_connectivity_graph(
         embeddings, communities, cluster_connectivities, mode=mode
     )
+
+    if start_cell_ids is not None:
+        start_cell_ids = (
+            start_cell_ids if isinstance(start_cell_ids, list) else [start_cell_ids]
+        )
+    else:
+        start_cell_ids = []
+
+    start_cluster_ids = set([communities.loc[id] for id in start_cell_ids])
+
+    colors = np.unique(communities)
+    if node_color is not None:
+        colors = []
+        for c_id in np.unique(communities):
+            if c_id in start_cluster_ids and start_node_color is not None:
+                colors.append(start_node_color)
+            else:
+                colors.append(node_color)
+
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:
@@ -493,7 +515,7 @@ def plot_connectivity_graph(
         g,
         pos=node_positions,
         cmap=cmap,
-        node_color=np.unique(communities),
+        node_color=colors,
         font_color=font_color,
         node_size=node_size,
         width=edge_weights,
@@ -511,6 +533,8 @@ def plot_gt_milestone_network(
     figsize=(12, 12),
     node_size=800,
     font_size=9,
+    save_path=None,
+    save_kwargs={},
     **kwargs,
 ):
     # NOTE: Since the dyntoy tool does not provide the spatial position
@@ -557,6 +581,10 @@ def plot_gt_milestone_network(
         font_size=font_size,
         **kwargs,
     )
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
 
 def plot_lineage_trends(

@@ -64,9 +64,6 @@ def generate_im_box_plots(
         plt.gca().set_ylabel("IM Score")
         plt.gca().set_xlabel("Datasets")
 
-    if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
-
     # Remove the right and top axes
     plt.gca().spines["right"].set_visible(False)
     plt.gca().spines["top"].set_visible(False)
@@ -80,6 +77,10 @@ def generate_im_box_plots(
         ["Metric", "PAGA"],
         # loc="upper right",
     )
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
     plt.show()
 
@@ -139,9 +140,6 @@ def generate_im_line_plots(
         plt.gca().set_ylabel("Average IM Score")
         plt.gca().set_xlabel("Datasets")
 
-    if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
-
     # Remove the right and top axes
     plt.gca().spines["right"].set_visible(False)
     plt.gca().spines["top"].set_visible(False)
@@ -151,5 +149,9 @@ def generate_im_line_plots(
 
     # Legend
     plt.gca().legend()
+
+    # Save
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
 
     plt.show()

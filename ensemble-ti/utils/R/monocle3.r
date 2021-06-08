@@ -2,17 +2,27 @@ library(ggplot2)
 library(VGAM)
 library(monocle3)
 
+# Args
+args = commandArgs(trailingOnly=TRUE)
+root_dir = args[1]
+cluster_backend = args[2]
+
+dir.create(root_dir)
 
 # Add more filepaths here based on how many datasets we want to analyze
+# TODO: Update this to read from files
 filepaths = c(
-    '/home/lexent/Downloads/disconnected_4.rds'
+    '/home/lexent/Downloads/cyclic_1.rds',
+    '/home/lexent/Downloads/cyclic_5.rds',
+    '/home/lexent/Downloads/cyclic_8.rds'
 )
 
 datasets = c(
-    'dyntoy_disconnected_4'
+    'dyntoy_cyclic_1',
+    'dyntoy_cyclic_5',
+    'dyntoy_cyclic_8'
 )
 
-root_dir = '/home/lexent/Desktop/monocle3_results/'
 results = data.frame()
 
 
@@ -41,7 +51,7 @@ for(i in 1:length(filepaths)){
     cds <- reduce_dimension(cds)
     
 #     Cluster generation
-    cds <- cluster_cells(cds, cluster_method='louvain', verbose=TRUE, random_seed=0)
+    cds <- cluster_cells(cds, cluster_method=cluster_backend, verbose=TRUE, random_seed=0)
     
 #     Learn trajectory
     cds <- learn_graph(cds)
@@ -53,7 +63,7 @@ for(i in 1:length(filepaths)){
        label_leaves=FALSE,
        label_branch_points=FALSE
     )
-    ggsave(paste(datasets[i], '.png', sep=""), path='/home/lexent/Desktop/monocle3_results')
+    ggsave(paste(datasets[i], '.png', sep=""), path=root_dir)
     
 #     Pseudotime computation
     cds = order_cells(cds, root_cells=start_cell_ids)
@@ -64,7 +74,7 @@ for(i in 1:length(filepaths)){
        label_branch_points=FALSE,
        graph_label_size=1.5
     )
-    ggsave(paste(datasets[i], '_pseudotime.png', sep=""), path='/home/lexent/Desktop/monocle3_results')
+    ggsave(paste(datasets[i], '_pseudotime.png', sep=""), path=root_dir)
     
 #     Metric computation (KT, SR etc.)
     monocle3_pseudotime = cds@principal_graph_aux[['UMAP']]$pseudotime
@@ -85,4 +95,4 @@ for(i in 1:length(filepaths)){
 
 print(results)
 
-write.csv(results, '/home/lexent/Desktop/monocle3_results/results.csv')
+write.csv(results, paste(root_dir, 'results.csv', sep=""))

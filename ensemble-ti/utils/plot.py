@@ -487,22 +487,23 @@ def plot_connectivity_graph(
         embeddings, communities, cluster_connectivities, mode=mode
     )
 
-    start_cell_ids = []
     if start_cell_ids is not None:
         start_cell_ids = (
             start_cell_ids if isinstance(start_cell_ids, list) else [start_cell_ids]
         )
+    else:
+        start_cell_ids = []
 
     start_cluster_ids = set([communities.loc[id] for id in start_cell_ids])
 
-    node_color = np.unique(communities)
+    colors = np.unique(communities)
     if node_color is not None:
-        node_color = []
+        colors = []
         for c_id in np.unique(communities):
             if c_id in start_cluster_ids and start_node_color is not None:
-                node_color.append(start_node_color)
+                colors.append(start_node_color)
             else:
-                node_color.append(node_color)
+                colors.append(node_color)
 
     # Draw the graph
     plt.figure(figsize=figsize)
@@ -514,7 +515,7 @@ def plot_connectivity_graph(
         g,
         pos=node_positions,
         cmap=cmap,
-        node_color=np.unique(communities),
+        node_color=colors,
         font_color=font_color,
         node_size=node_size,
         width=edge_weights,

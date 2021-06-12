@@ -432,6 +432,7 @@ def compute_diff_potential(
     std_factor=1.0,
     knn=30,
     prune_wp_graph=True,
+    exclude_clusters=None,
     n_jobs=1,
 ):
     wps = ad.uns[wp_key]
@@ -451,6 +452,12 @@ def compute_diff_potential(
     )
     adj_dist_pruned[adj_dist_pruned == 0] = np.inf
 
+    if exclude_clusters is not None:
+        for cid in exclude_clusters:
+            idx = adj_dist_pruned.index[communities == cid]
+            adj_dist_pruned = adj_dist_pruned.drop(index=idx, columns=idx)
+            adj_cluster = adj_cluster.drop(index=cid, columns=cid)
+
     # This represents the final connectivity Adj mat. between cells
     adj_conn = csr_matrix(np.exp(-np.power(adj_dist_pruned, 2)))
 
@@ -463,7 +470,9 @@ def compute_diff_potential(
             f"The scheme {sim_scheme} has not been implemented yet!"
         )
 
-    S = pd.DataFrame(S.todense(), index=ad.obs_names, columns=ad.obs_names)
+    S = pd.DataFrame(
+        S.todense(), index=adj_dist_pruned.index, columns=adj_dist_pruned.index
+    )
 
     # Waypoint to Terminal State connectivity
     print("Waypoint to Terminal State connectivity")
@@ -484,12 +493,18 @@ def compute_diff_potential(
     )
 
     # Project branch probs on the cells
-    bps = S.loc[:, wp_].loc[:, bp.index].dot(bp)
-    bps = bps.div(bps.sum(axis=1), axis=0)
+    bps_ = S.loc[:, wp_].loc[:, bp.index].dot(bp)
+    bps_ = bps_.div(bps_.sum(axis=1), axis=0)
+
+    # We perform the assignment in this way to account for
+    # clusters that might have been excluded.
+    bps = pd.DataFrame(index=ad.obs_names, columns=bps_.columns)
+    bps.loc[bps_.index, :] = bps_
 
     # Compute row-wise entropy to compute DP
-    ent = ss.entropy(bps, base=2, axis=1)
-    ent = pd.Series(ent, index=ad.obs_names)
+    ent_ = ss.entropy(bps_, base=2, axis=1)
+    ent = pd.Series(index=ad.obs_names)
+    ent.loc[adj_dist_pruned.index] = ent_
 
     # Add to the anndata object
     ad.obsm["metric_branch_probs"] = bps

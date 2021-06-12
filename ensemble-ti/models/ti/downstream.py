@@ -207,6 +207,7 @@ def sample_waypoints(
     embedding_key="metric_embedding",
     n_waypoints=10,
     scheme="kmpp",
+    exclude_clusters=None,
 ):
     X = pd.DataFrame(ad.obsm[embedding_key], index=ad.obs_names)
     clusters = ad.obs[cluster_key]
@@ -217,6 +218,10 @@ def sample_waypoints(
     dists = pd.DataFrame(index=ad.obs_names)
 
     for cluster_id in labels:
+        # Skip if the cluster id is excluded
+        if exclude_clusters is not None and cluster_id in exclude_clusters:
+            print(f"Excluding waypoint computation for cluster: {cluster_id}")
+            continue
         # Sample waypoints for a cluster at a time
         cell_ids = clusters == cluster_id
         g = adj_dist.loc[cell_ids, cell_ids]

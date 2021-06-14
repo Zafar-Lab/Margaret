@@ -27,6 +27,8 @@ class UnsupervisedTrainer:
         random_state=0,
         optimizer_kwargs={},
         lr_scheduler_kwargs={},
+        train_loader_kwargs={},
+        val_loader_kwargs={},
         **kwargs,
     ):
         # Create the dataset
@@ -38,20 +40,22 @@ class UnsupervisedTrainer:
         self.log_step = log_step
         self.loss_profile = []
         self.batch_size = batch_size
+        self.train_loader_kwargs = train_loader_kwargs
+        self.val_loader_kwargs = val_loader_kwargs
 
         self.train_loader = DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            drop_last=True,
-            num_workers=0,
+            **self.train_loader_kwargs,
         )
         if self.val_dataset is not None:
             self.val_loader = DataLoader(
                 self.val_dataset,
                 batch_size=self.batch_size,
+                shuffle=False,
                 drop_last=False,
-                num_workers=0,
+                **self.val_loader_kwargs,
             )
         self.model = model.to(self.device)
 
@@ -179,8 +183,7 @@ class UnsupervisedTrainer:
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            drop_last=True,
-            num_workers=0,
+            **self.train_loader_kwargs,
         )
 
 

@@ -12,6 +12,7 @@ import umap
 
 from matplotlib import cm
 from matplotlib.text import Annotation
+from matplotlib.font_manager import FontProperties
 from sklearn.manifold import TSNE
 
 from models.ti.graph import (
@@ -41,6 +42,78 @@ def generate_plot_embeddings(X, method="tsne", **kwargs):
         return X_umap
     else:
         raise ValueError(f"Unsupported embedding method type: {method}")
+
+
+def plot_annotated_heatmap(
+    mat,
+    col_labels,
+    row_labels,
+    figsize=None,
+    ax=None,
+    cmap="YlGn",
+    fontsize=16,
+    fontcolor="black",
+    save_path=None,
+    col_font=None,
+    row_font=None,
+    save_kwargs={},
+    **kwargs,
+):
+    # Code inspired from: https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
+    # Create figure
+    fig = plt.figure(figsize=figsize)
+
+    if ax is None:
+        ax = plt.gca()
+
+    # Show plot
+    im = ax.imshow(mat, cmap=cmap, **kwargs)
+
+    # Configure axis labels
+    ax.set_xticks(np.arange(len(col_labels)))
+    ax.set_yticks(np.arange(len(row_labels)))
+
+    if col_font is not None:
+        ax.set_xticklabels(col_labels, fontproperties=col_font, fontsize=fontsize)
+    else:
+        ax.set_xticklabels(col_labels, fontsize=fontsize)
+
+    if row_font is not None:
+        ax.set_yticklabels(row_labels, fontproperties=row_font, fontsize=fontsize)
+    else:
+        ax.set_yticklabels(row_labels, fontsize=fontsize)
+
+    # Horizontal axes labels appear on top!
+    ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
+
+    plt.setp(ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor")
+
+    ax.set_xticks(np.arange(mat.shape[1] + 1) - 0.5, minor=True)
+    ax.set_yticks(np.arange(mat.shape[0] + 1) - 0.5, minor=True)
+
+    ax.grid(which="minor", color="black", linestyle="-", linewidth=0.5)
+    ax.tick_params(which="minor")
+
+    # Annotate the heatmap
+    for i in range(len(row_labels)):
+        for j in range(len(col_labels)):
+            ax.text(
+                j,
+                i,
+                np.round(mat[i, j], 3),
+                ha="center",
+                va="center",
+                color=fontcolor,
+                fontsize=fontsize,
+            )
+
+    fig.tight_layout()
+
+    # Save figure
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+
+    return im, ax
 
 
 def plot_embeddings(
@@ -431,11 +504,14 @@ def plot_trajectory_graph_v2(
     communities,
     d_connectivity,
     node_positions,
+    start_cell_ids=None,
     cmap="YlGn",
     figsize=(16, 12),
     node_size=400,
     font_color="black",
     title=None,
+    start_node_color=None,
+    node_color=None,
     save_path=None,
     save_kwargs={},
     offset=0,
@@ -445,6 +521,25 @@ def plot_trajectory_graph_v2(
         pseudotime, adj_cluster, communities, d_connectivity
     )
     g = nx.from_pandas_adjacency(adj_g, create_using=nx.DiGraph)
+
+    if start_cell_ids is not None:
+        start_cell_ids = (
+            start_cell_ids if isinstance(start_cell_ids, list) else [start_cell_ids]
+        )
+    else:
+        start_cell_ids = []
+
+    start_cluster_ids = set([communities.loc[id] for id in start_cell_ids])
+
+    colors = np.unique(communities)
+    if node_color is not None:
+        colors = []
+        for c_id in np.unique(communities):
+            if c_id in start_cluster_ids and start_node_color is not None:
+                colors.append(start_node_color)
+            else:
+                colors.append(node_color)
+
     # Draw the graph
     plt.figure(figsize=figsize)
     if title is not None:
@@ -455,7 +550,7 @@ def plot_trajectory_graph_v2(
         g,
         pos=node_positions,
         cmap=cmap,
-        node_color=np.unique(communities),
+        node_color=colors,
         font_color=font_color,
         node_size=node_size,
         width=edge_weights,

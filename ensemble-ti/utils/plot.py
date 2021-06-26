@@ -817,7 +817,7 @@ def plot_connectivity_graph_with_gene_expressions(
         )
     except KeyError:
         print("MAGIC imputed data not found. Using raw counts instead")
-        X_imputed = ad.X
+        X_imputed = ad.to_df()
 
     if gene not in ad.var_names:
         raise ValueError(f"Gene: {gene} was not found.")

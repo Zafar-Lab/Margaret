@@ -26,6 +26,7 @@ def train_metric_learner(
     nn_kwargs={},
     trainer_kwargs={},
     cluster_kwargs={},
+    loss_kwargs={},
 ):
     X = adata.obsm[obsm_data_key]
     clustering_scores = []
@@ -50,7 +51,7 @@ def train_metric_learner(
     cluster_record.append(dataset.num_clusters)
 
     # Train Loss
-    train_loss = nn.TripletMarginLoss()
+    train_loss = nn.TripletMarginLoss(**loss_kwargs)
 
     # Model
     infeatures = X.shape[-1]

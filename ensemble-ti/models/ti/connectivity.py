@@ -4,7 +4,9 @@ from utils.util import compute_runtime
 
 
 @compute_runtime
-def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
+def compute_undirected_cluster_connectivity(
+    communities, adj, z_threshold=1.0, conn_threshold=None
+):
     N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
 
@@ -57,10 +59,14 @@ def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
             undirected_z_score[i][j] = (e_sym - e_sym_random) / std_sym
 
             # Only add non-spurious edges based on a threshold
-            if undirected_z_score[i][j] >= threshold:
-                undirected_cluster_connectivity[i][j] = (e_sym - e_sym_random) / (
-                    e_i + e_j - e_sym_random
-                )
+            undirected_cluster_connectivity[i][j] = (e_sym - e_sym_random) / (
+                e_i + e_j - e_sym_random
+            )
+            if conn_threshold is not None:
+                if undirected_cluster_connectivity[i][j] < conn_threshold:
+                    undirected_cluster_connectivity[i][j] = 0
+            elif undirected_z_score[i][j] < z_threshold:
+                undirected_cluster_connectivity[i][j] = 0
     return undirected_cluster_connectivity, undirected_z_score
 
 

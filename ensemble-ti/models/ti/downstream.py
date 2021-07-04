@@ -454,7 +454,7 @@ def compute_diff_potential(
 
     if exclude_clusters is not None:
         for cid in exclude_clusters:
-            idx = adj_dist_pruned.index[communities == cid]
+            idx = ad.obs_names[communities == cid]
             adj_dist_pruned = adj_dist_pruned.drop(index=idx, columns=idx)
             adj_cluster = adj_cluster.drop(index=cid, columns=cid)
 

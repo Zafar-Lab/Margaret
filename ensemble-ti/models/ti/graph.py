@@ -132,7 +132,7 @@ def compute_trajectory_graph_v2(
             ):
                 # The edge weight will be the contribution from the directed
                 # connectivities and difference of the pseudotimes
-                adj.loc[idx, c_idx] = d_connectivity[idx, c_idx] + 1 / (
+                adj.loc[idx, c_idx] = d_connectivity.loc[idx, c_idx] + 1 / (
                     1 + np.exp(cluster_pt.loc[c_idx, "t"] - cluster_pt.loc[idx, "t"])
                 )
 

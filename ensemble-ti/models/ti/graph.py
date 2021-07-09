@@ -55,14 +55,13 @@ def compute_connectivity_graph(
         node_positions[i] = node_pos
 
     n_nodes = len(cluster_ids)
-    n_rows, n_cols = cluster_connectivities.shape
-    for row_id in range(n_rows):
-        for col_id in range(n_cols):
-            if cluster_connectivities[row_id][col_id] > 0:
+    for row_id, i in enumerate(cluster_ids):
+        for col_id, j in enumerate(cluster_ids):
+            if cluster_connectivities.loc[i, j] > 0:
                 g.add_edge(
                     cluster_ids[row_id],
                     cluster_ids[col_id],
-                    weight=cluster_connectivities[row_id][col_id],
+                    weight=cluster_connectivities.loc[i, j],
                 )
     return g, node_positions
 

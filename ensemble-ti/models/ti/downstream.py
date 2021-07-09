@@ -1,11 +1,11 @@
 import networkx as nx
 import numpy as np
-from numpy.linalg.linalg import LinAlgError
 import pandas as pd
 import scanpy as sc
 import scipy.stats as ss
 
 from numpy.linalg import inv, pinv
+from numpy.linalg.linalg import LinAlgError
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import find, csr_matrix
 from scipy.stats import entropy
@@ -43,8 +43,7 @@ def get_terminal_states(
     start_cluster_ids = set(get_start_cell_cluster_id(ad, start_cell_ids, communities))
 
     # Find clusters with no outgoing edges (Candidate 1)
-    nodes_g = np.array(nx.nodes(g))
-    terminal_candidates_1 = set(nodes_g[np.sum(adj_g, axis=1) == 0])
+    terminal_candidates_1 = set(adj_g.index[np.sum(adj_g, axis=1) == 0])
     print(f"Terminal cluster candidate 1: {terminal_candidates_1}")
 
     # Compute betweeness of second set of candidates and exclude
@@ -70,7 +69,7 @@ def get_terminal_states(
     terminal_candidates = terminal_candidates - start_cluster_ids
 
     # Remove clusters with no incoming edges which are not start_clusters
-    islands = set(nodes_g[np.sum(adj_g, axis=0) == 0]) - start_cluster_ids
+    islands = set(adj_g.index[np.sum(adj_g, axis=0) == 0]) - start_cluster_ids
     terminal_candidates = terminal_candidates - islands
 
     # convert candidate set to list as sets cant be serialized in anndata objects

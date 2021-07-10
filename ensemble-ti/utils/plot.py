@@ -408,6 +408,70 @@ def plot_clusters(
     plt.show()
 
 
+def plot_clusters_with_cell_overlay(
+    adata,
+    cell_ids,
+    cluster_key="metric_clusters",
+    embedding_key="X_met_embedding",
+    overlay_marker_size=5,
+    overlay_color='black',
+    figsize=(8, 8),
+    title=None,
+    save_path=None,
+    color_map=None,
+    show_legend=True,
+    leg_marker_size=None,
+    legend_kwargs={},
+    save_kwargs={},
+    **kwargs,
+):
+    communities = adata.obs[cluster_key]
+    embeddings = pd.DataFrame(adata.obsm[embedding_key], index=adata.obs_names)
+    # Only 2d embeddings can be visualized :)
+    assert embeddings.shape[-1] == 2
+
+    plt.figure(figsize=figsize)
+    if title is not None:
+        plt.title(title)
+    axes = plt.gca()
+
+    for cluster_id in np.unique(communities):
+        ids = communities == cluster_id
+        c = None if color_map is None else color_map[cluster_id]
+        axes.scatter(
+            embeddings.loc[ids, 0],
+            embeddings.loc[ids, 1],
+            c=c,
+            label=cluster_id,
+            **kwargs,
+        )
+
+    # Turn-off axes
+    axes.set_axis_off()
+
+    # Overlay cells
+    overlay_embed = embeddings.loc[cell_ids, :].to_numpy()
+    axes.scatter(
+        overlay_embed[:, 0],
+        overlay_embed[:, 1],
+        s=overlay_marker_size,
+        c=overlay_color,
+        zorder=10
+    )
+
+    if show_legend:
+        legend = plt.legend(**legend_kwargs)
+
+        # Hack to change the size of the markers in the legend
+        if leg_marker_size is not None:
+            for h in legend.legendHandles:
+                h.set_sizes([leg_marker_size])
+
+    if save_path is not None:
+        plt.savefig(save_path, **save_kwargs)
+    plt.show()
+
+
 def plot_pseudotime(
     adata,
     embedding_key="X_met_embedding",

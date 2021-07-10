@@ -1,23 +1,34 @@
 import numpy as np
+import pandas as pd
 
 from utils.util import compute_runtime
 
 
 @compute_runtime
-def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
+def compute_undirected_cluster_connectivity(
+    communities, adj, z_threshold=1.0, conn_threshold=None
+):
     N = communities.shape[0]
     n_communities = np.unique(communities).shape[0]
 
     # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
+    clusters = {}
+    for idx in np.unique(communities):
         cluster_idx = communities == idx
-        clusters.append(cluster_idx)
+        clusters[idx] = cluster_idx
 
-    undirected_cluster_connectivity = np.zeros((n_communities, n_communities))
-    undirected_z_score = np.zeros((n_communities, n_communities))
-    cluster_outgoing_edges = np.zeros(n_communities)
-    for i in range(n_communities):
+    undirected_cluster_connectivity = pd.DataFrame(
+        np.zeros((n_communities, n_communities)),
+        index=np.unique(communities),
+        columns=np.unique(communities),
+    )
+    undirected_z_score = pd.DataFrame(
+        np.zeros((n_communities, n_communities)),
+        index=np.unique(communities),
+        columns=np.unique(communities),
+    )
+    cluster_outgoing_edges = {}
+    for i in np.unique(communities):
         cluster_i = clusters[i]
 
         # Compute the outgoing edges from the ith cluster
@@ -27,7 +38,7 @@ def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
         n_i = np.sum(cluster_i)
         cluster_outgoing_edges[i] = e_i
 
-        for j in range(n_communities):
+        for j in np.unique(communities):
             if i == j:
                 continue
             # Compute the outgoing edges from the jth cluster
@@ -54,13 +65,17 @@ def compute_undirected_cluster_connectivity(communities, adj, threshold=1.0):
             std_sym = (e_i * n_j * (N - n_j - 1) + e_j * n_i * (N - n_i - 1)) / (
                 N - 1
             ) ** 2
-            undirected_z_score[i][j] = (e_sym - e_sym_random) / std_sym
+            undirected_z_score.loc[i, j] = (e_sym - e_sym_random) / std_sym
 
             # Only add non-spurious edges based on a threshold
-            if undirected_z_score[i][j] >= threshold:
-                undirected_cluster_connectivity[i][j] = (e_sym - e_sym_random) / (
-                    e_i + e_j - e_sym_random
-                )
+            undirected_cluster_connectivity.loc[i, j] = (e_sym - e_sym_random) / (
+                e_i + e_j - e_sym_random
+            )
+            if conn_threshold is not None:
+                if undirected_cluster_connectivity.loc[i, j] < conn_threshold:
+                    undirected_cluster_connectivity.loc[i, j] = 0
+            elif undirected_z_score.loc[i, j] < z_threshold:
+                undirected_cluster_connectivity.loc[i, j] = 0
     return undirected_cluster_connectivity, undirected_z_score
 
 
@@ -70,15 +85,23 @@ def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
     n_communities = np.unique(communities).shape[0]
 
     # Create cluster index
-    clusters = []
-    for idx in range(n_communities):
+    clusters = {}
+    for idx in np.unique(communities):
         cluster_idx = communities == idx
-        clusters.append(cluster_idx)
+        clusters[idx] = cluster_idx
 
-    directed_cluster_connectivity = np.zeros((n_communities, n_communities))
-    directed_z_score = np.zeros((n_communities, n_communities))
-    cluster_outgoing_edges = np.zeros(n_communities)
-    for i in range(n_communities):
+    directed_cluster_connectivity = pd.DataFrame(
+        np.zeros((n_communities, n_communities)),
+        index=np.unique(communities),
+        columns=np.unique(communities),
+    )
+    directed_z_score = pd.DataFrame(
+        np.zeros((n_communities, n_communities)),
+        index=np.unique(communities),
+        columns=np.unique(communities),
+    )
+    cluster_outgoing_edges = {}
+    for i in np.unique(communities):
         cluster_i = clusters[i]
 
         # Compute the outgoing edges from the ith cluster
@@ -87,7 +110,7 @@ def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
         e_i = np.sum(adj_i) - np.sum(adj_ii)
         cluster_outgoing_edges[i] = e_i
 
-        for j in range(n_communities):
+        for j in np.unique(communities):
             if i == j:
                 continue
             # Compute the outgoing edges from the jth cluster
@@ -104,11 +127,11 @@ def compute_directed_cluster_connectivity(communities, adj, threshold=1.0):
 
             # Compute the cluster connectivity measure
             std_j = e_i * n_j * (N - n_j - 1) / (N - 1) ** 2
-            directed_z_score[i][j] = (e_ij - e_ij_random) / std_j
+            directed_z_score.loc[i, j] = (e_ij - e_ij_random) / std_j
 
             # Only add non-spurious edges with 95% CI
-            if directed_z_score[i][j] >= threshold:
-                directed_cluster_connectivity[i][j] = (e_ij - e_ij_random) / (
+            if directed_z_score.loc[i, j] >= threshold:
+                directed_cluster_connectivity.loc[i, j] = (e_ij - e_ij_random) / (
                     e_i - e_ij_random
                 )
     return directed_cluster_connectivity, directed_z_score

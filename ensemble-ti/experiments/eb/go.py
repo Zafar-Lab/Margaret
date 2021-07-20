@@ -39,12 +39,10 @@ def generate_go_terms(
         print(f"Computing GO terms for cluster: {idx}")
 
         # Read DE results
-        names = [res[idx] for res in de_res["names"]]
-        scores = pd.Series([res[idx] for res in de_res["scores"]], index=names)
-        lfc_vals = pd.Series(
-            [res[idx] for res in de_res["logfoldchanges"]], index=names
-        )
-        adjp_vals = pd.Series([res[idx] for res in de_res["pvals_adj"]], index=names)
+        names = de_res["names"][f"{idx}"]
+        scores = pd.Series(de_res["scores"][f"{idx}"], index=names)
+        lfc_vals = pd.Series(de_res["logfoldchanges"][f"{idx}"], index=names)
+        adjp_vals = pd.Series(de_res["pvals_adj"][f"{idx}"], index=names)
         gene_index = lfc_vals.index
 
         # Keep values above threshold

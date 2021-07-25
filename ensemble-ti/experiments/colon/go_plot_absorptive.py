@@ -10,38 +10,46 @@ def transform_pval(p):
 
 
 go_ids = [
-    # HC (mature goblets)
-    "GO:0002483",
-    "GO:0001913",
-    "GO:0060337",
-    "GO:0002283",
-    "GO:0034340",
-    "GO:0002444",
+    # BEST4/OTOP2
+    "GO:1990169",
+    "GO:0010273",
+    "GO:0061687",
+    "GO:0097501",
+    "GO:0071276",
+    "GO:0071294",
+    "GO:0071280",
+    "GO:0055069",
+    "GO:0055076",
+    "GO:0046916",
+    # CT COLONOCYTES
     "GO:0002446",
-    # IC (Mature goblets)
-    "GO:0034330",
-    "GO:0016477",
-    "GO:0009653",
-    "GO:0009611",
-    "GO:0097435",
-    "GO:0030855",
-    "GO:0042060",
-    "GO:0006950",
-    "GO:0008219",
-    "GO:0051707",
-    # HC (immature goblets)
-    "GO:0006614",
-    "GO:0006613",
-    "GO:0045047",
-    "GO:0000956",
-    "GO:0072594",
+    "GO:0002283",
+    "GO:0002444",
+    "GO:0042119",
+    "GO:0043312",
+    "GO:0051234",
+    "GO:0006887",
+    # COLONOCYTES
+    "GO:0006820",
+    "GO:0046943",
+    "GO:0015711",
+    "GO:0032532",
+    "GO:0032528",
+    "GO:0032787",
+    # AP'S
+    "GO:0044281",
+    "GO:0006629",
+    "GO:1901615",
+    "GO:0019752",
+    "GO:0019637",
+    "GO:0044255",
 ]
 
 term_dict = {
-    "HC (Mature)": "experiments/colon/files/go_goblet_normal/GO_4.csv",
-    "IC (Mature)": "experiments/colon/files/go_goblet_inflammed/GO_2.csv",
-    "HC (Immature)": "experiments/colon/files/go_goblet_normal/GO_0.csv",
-    "IC (Immature)": "experiments/colon/files/go_goblet_inflammed/GO_0.csv",
+    "BEST4/OTOP2": "experiments/colon/files/go_goblet_absorptive/GO_13.csv",
+    "CT Colonocytes": "experiments/colon/files/go_goblet_absorptive/GO_3.csv",
+    "Colonocytes": "experiments/colon/files/go_goblet_absorptive/GO_8.csv",
+    "AP's": "experiments/colon/files/go_goblet_absorptive/GO_1.csv",
 }
 
 n_terms = len(go_ids)
@@ -61,7 +69,7 @@ for case, path in term_dict.items():
     )
     mat.loc[:, case] = term_pvals
 
-print(descriptions)
+print(len(descriptions))
 
 plot_annotated_heatmap(
     mat.to_numpy(),
@@ -77,7 +85,7 @@ plot_annotated_heatmap(
         "pad_inches": 0,
         "dpi": 300,
     },
-    save_path="/home/lexent/go_plot.png",
+    save_path="/home/lexent/go_plot_absorptive.png",
     cb_kwargs={"shrink": 0.3},
 )
 plt.show()

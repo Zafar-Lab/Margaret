@@ -59,6 +59,7 @@ def generate_go_terms(
         remaining_genes = scores_.index
 
         # GO query
+        print(f"Querying for {len(remaining_genes)} genes")
         go_df = gp.profile(organism="hsapiens", query=list(remaining_genes), **kwargs)
         if save_dir is not None:
             save_path = os.path.join(save_dir, f"GO_{idx}.csv")

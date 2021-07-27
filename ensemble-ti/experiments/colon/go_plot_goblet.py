@@ -65,7 +65,7 @@ print(descriptions)
 
 plot_annotated_heatmap(
     mat.to_numpy(),
-    cmap="PuBu",
+    cmap="cividis",
     col_labels=term_dict.keys(),
     row_labels=descriptions.values(),
     figsize=(7, 8),

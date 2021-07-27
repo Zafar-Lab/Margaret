@@ -57,6 +57,10 @@ def plot_annotated_heatmap(
     col_font=None,
     row_font=None,
     save_kwargs={},
+    annotate_text=True,
+    show_colorbar=True,
+    cb_axes_pos=None,
+    cb_kwargs={},
     **kwargs,
 ):
     # Code inspired from: https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
@@ -95,19 +99,25 @@ def plot_annotated_heatmap(
     ax.tick_params(which="minor")
 
     # Annotate the heatmap
-    for i in range(len(row_labels)):
-        for j in range(len(col_labels)):
-            ax.text(
-                j,
-                i,
-                np.round(mat[i, j], 3),
-                ha="center",
-                va="center",
-                color=fontcolor,
-                fontsize=fontsize,
-            )
+    if annotate_text:
+        for i in range(len(row_labels)):
+            for j in range(len(col_labels)):
+                ax.text(
+                    j,
+                    i,
+                    np.round(mat[i, j], 3),
+                    ha="center",
+                    va="center",
+                    color=fontcolor,
+                    fontsize=fontsize,
+                )
 
-    fig.tight_layout()
+    # Colorbar
+    if show_colorbar:
+        cax = None
+        if cb_axes_pos is not None:
+            cax = fig.add_axes(cb_axes_pos)
+        plt.colorbar(im, cax=cax, **cb_kwargs)
 
     # Save figure
     if save_path is not None:
@@ -414,7 +424,7 @@ def plot_clusters_with_cell_overlay(
     cluster_key="metric_clusters",
     embedding_key="X_met_embedding",
     overlay_marker_size=5,
-    overlay_color='black',
+    overlay_color="black",
     figsize=(8, 8),
     title=None,
     save_path=None,
@@ -456,7 +466,7 @@ def plot_clusters_with_cell_overlay(
         overlay_embed[:, 1],
         s=overlay_marker_size,
         c=overlay_color,
-        zorder=10
+        zorder=10,
     )
 
     if show_legend:

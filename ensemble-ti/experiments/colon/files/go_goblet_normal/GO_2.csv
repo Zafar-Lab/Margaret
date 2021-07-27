@@ -1,0 +1,2 @@
+source,native,name,p_value,significant,description,term_size,query_size,intersection_size,effective_domain_size,precision,recall,query,parents
+CORUM,CORUM:6474,Cubam complex,0.04994745527705908,True,Cubam complex,2,1,1,3627,1.0,0.5,query_1,['CORUM:0000000']

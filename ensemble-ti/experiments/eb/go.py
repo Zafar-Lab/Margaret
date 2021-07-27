@@ -39,12 +39,10 @@ def generate_go_terms(
         print(f"Computing GO terms for cluster: {idx}")
 
         # Read DE results
-        names = [res[idx] for res in de_res["names"]]
-        scores = pd.Series([res[idx] for res in de_res["scores"]], index=names)
-        lfc_vals = pd.Series(
-            [res[idx] for res in de_res["logfoldchanges"]], index=names
-        )
-        adjp_vals = pd.Series([res[idx] for res in de_res["pvals_adj"]], index=names)
+        names = de_res["names"][f"{idx}"]
+        scores = pd.Series(de_res["scores"][f"{idx}"], index=names)
+        lfc_vals = pd.Series(de_res["logfoldchanges"][f"{idx}"], index=names)
+        adjp_vals = pd.Series(de_res["pvals_adj"][f"{idx}"], index=names)
         gene_index = lfc_vals.index
 
         # Keep values above threshold
@@ -60,7 +58,12 @@ def generate_go_terms(
         scores_ = filtered_scores.sort_values(ascending=False).iloc[:n_top]
         remaining_genes = scores_.index
 
+        if len(remaining_genes) == 0:
+            print(f"Found query size 0. Skipping GO analysis for cluster {idx}")
+            continue
+
         # GO query
+        print(f"Querying for {len(remaining_genes)} genes")
         go_df = gp.profile(organism="hsapiens", query=list(remaining_genes), **kwargs)
         if save_dir is not None:
             save_path = os.path.join(save_dir, f"GO_{idx}.csv")

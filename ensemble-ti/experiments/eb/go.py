@@ -58,6 +58,10 @@ def generate_go_terms(
         scores_ = filtered_scores.sort_values(ascending=False).iloc[:n_top]
         remaining_genes = scores_.index
 
+        if len(remaining_genes) == 0:
+            print(f"Found query size 0. Skipping GO analysis for cluster {idx}")
+            continue
+
         # GO query
         print(f"Querying for {len(remaining_genes)} genes")
         go_df = gp.profile(organism="hsapiens", query=list(remaining_genes), **kwargs)

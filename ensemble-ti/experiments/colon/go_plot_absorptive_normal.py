@@ -46,10 +46,10 @@ go_ids = [
 ]
 
 term_dict = {
-    "BEST4/OTOP2": "experiments/colon/files/go_goblet_absorptive/GO_13.csv",
-    "CT Colonocytes": "experiments/colon/files/go_goblet_absorptive/GO_3.csv",
-    "Colonocytes": "experiments/colon/files/go_goblet_absorptive/GO_8.csv",
-    "AP's": "experiments/colon/files/go_goblet_absorptive/GO_1.csv",
+    "BEST4/OTOP2": "experiments/colon/files/go_absorptive_normal/GO_13.csv",
+    "CT Colonocytes": "experiments/colon/files/go_absorptive_normal/GO_3.csv",
+    "Colonocytes": "experiments/colon/files/go_absorptive_normal/GO_8.csv",
+    "AP's": "experiments/colon/files/go_absorptive_normal/GO_1.csv",
 }
 
 n_terms = len(go_ids)

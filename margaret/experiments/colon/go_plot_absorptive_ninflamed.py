@@ -11,45 +11,40 @@ def transform_pval(p):
 
 go_ids = [
     # BEST4/OTOP2
-    "GO:1990169",
-    "GO:0010273",
-    "GO:0061687",
     "GO:0097501",
-    "GO:0071276",
-    "GO:0071294",
+    "GO:0010273",
+    "GO:1990169",
     "GO:0071280",
+    "GO:0046688",
+    "GO:0061687",
+    "GO:0071294",
+    "GO:0071276",
+    "GO:0006882",
     "GO:0055069",
+    "GO:0046686",
     "GO:0055076",
-    "GO:0046916",
+    "GO:0010043",
     # CT COLONOCYTES
-    "GO:0002446",
     "GO:0002283",
-    "GO:0002444",
+    "GO:0002446",
     "GO:0042119",
+    "GO:0006810",
     "GO:0043312",
+    "GO:0036230",
+    "GO:0002275",
+    "GO:0002444",
     "GO:0051234",
-    "GO:0006887",
-    # COLONOCYTES
-    "GO:0006820",
-    "GO:0046943",
-    "GO:0015711",
-    "GO:0032532",
-    "GO:0032528",
-    "GO:0032787",
-    # AP'S
-    "GO:0044281",
-    "GO:0006629",
-    "GO:1901615",
-    "GO:0019752",
-    "GO:0019637",
-    "GO:0044255",
+    "GO:0002274",
+    "GO:0002366",
+    "GO:0002263",
+    "GO:0032940",
 ]
 
 term_dict = {
-    "BEST4/OTOP2": "experiments/colon/files/go_goblet_absorptive/GO_13.csv",
-    "CT Colonocytes": "experiments/colon/files/go_goblet_absorptive/GO_3.csv",
-    "Colonocytes": "experiments/colon/files/go_goblet_absorptive/GO_8.csv",
-    "AP's": "experiments/colon/files/go_goblet_absorptive/GO_1.csv",
+    "BEST4/OTOP2": "experiments/colon/files/go_absorptive_ninflamed/GO_13.csv",
+    "CT Colonocytes": "experiments/colon/files/go_absorptive_ninflamed/GO_3.csv",
+    "Colonocytes": "experiments/colon/files/go_absorptive_ninflamed/GO_5.csv",
+    "AP's": "",
 }
 
 n_terms = len(go_ids)
@@ -85,7 +80,7 @@ plot_annotated_heatmap(
         "pad_inches": 0,
         "dpi": 300,
     },
-    save_path="/home/lexent/go_plot_absorptive.png",
+    save_path="/home/lexent/go_plot_absorptive_ninflamed.png",
     cb_kwargs={"shrink": 0.3},
 )
 plt.show()

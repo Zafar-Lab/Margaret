@@ -29,7 +29,7 @@ generate_go_heatmap(
     order=order,
     cmap="Greens",
     color_map=color_map,
-    save_path="/home/lexent/go_5.png",
+    save_path="/home/lexent/",
     save_kwargs={"dpi": 200, "transparent": True, "bbox_inches": "tight"},
 )
 
@@ -124,6 +124,6 @@ generate_go_heatmap(
     figsize=(24, 6),
     groups=groups,
     color_map=color_map,
-    save_path="/home/lexent/go_26.png",
+    save_path="/home/lexent/",
     save_kwargs={"dpi": 200, "transparent": True, "bbox_inches": "tight"},
 )

@@ -1,3 +1,5 @@
+from collections import defaultdict
+from typing import DefaultDict, OrderedDict
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -46,10 +48,13 @@ go_ids = [
 ]
 
 term_dict = {
-    "BEST4/OTOP2": "experiments/colon/files/go_absorptive_normal/GO_13.csv",
-    "CT Colonocytes": "experiments/colon/files/go_absorptive_normal/GO_3.csv",
-    "Colonocytes": "experiments/colon/files/go_absorptive_normal/GO_8.csv",
-    "AP's": "experiments/colon/files/go_absorptive_normal/GO_1.csv",
+    "BEST4/OTOP2": ["experiments/colon/files/go_absorptive_normal/GO_13.csv"],
+    "CT Colonocytes": ["experiments/colon/files/go_absorptive_normal/GO_3.csv"],
+    "Colonocytes": ["experiments/colon/files/go_absorptive_normal/GO_8.csv"],
+    "AP's": [
+        "experiments/colon/files/go_absorptive_normal/GO_1.csv",
+        "experiments/colon/files/go_absorptive_normal/GO_10.csv",
+    ],
 }
 
 n_terms = len(go_ids)
@@ -58,15 +63,18 @@ n_cases = len(term_dict)
 mat = pd.DataFrame(np.zeros((n_terms, n_cases)), index=go_ids, columns=term_dict.keys())
 descriptions = {t: "" for t in go_ids}
 
-for case, path in term_dict.items():
-    term_df = pd.read_csv(path, index_col=1)
-    term_pvals = [
-        transform_pval(term_df.loc[t, "p_value"]) if t in term_df.index else 0
-        for t in go_ids
-    ]
-    descriptions.update(
-        {t: term_df.loc[t, "name"] for t in go_ids if t in term_df.index}
-    )
+for case, paths in term_dict.items():
+    candidate_pvals = defaultdict(lambda: [])
+    for path in paths:
+        term_df = pd.read_csv(path, index_col=1)
+        for t in go_ids:
+            candidate_pvals[t].append(
+                transform_pval(term_df.loc[t, "p_value"]) if t in term_df.index else 0
+            )
+        descriptions.update(
+            {t: term_df.loc[t, "name"] for t in go_ids if t in term_df.index}
+        )
+    term_pvals = [max(pvals) for _, pvals in candidate_pvals.items()]
     mat.loc[:, case] = term_pvals
 
 print(len(descriptions))

@@ -900,8 +900,9 @@ def plot_connectivity_graph_with_gene_expressions(
         X_embedded, communities, cluster_connectivities, mode=mode
     )
 
-    # Compute cluster wise mean expression of the gene
+    # Normalize and compute cluster wise mean expression of the gene
     X_gene = X_imputed[gene]
+    X_gene = (X_gene - X_gene.min()) / (X_gene.max() - X_gene.min())
     gene_exprs = []
     for cluster_id in np.unique(communities):
         ids = communities == cluster_id

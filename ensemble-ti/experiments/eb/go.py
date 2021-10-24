@@ -97,6 +97,7 @@ def filter_go_terms(terms_file_path, pat_file_path):
 def generate_go_heatmap(
     term_paths,
     pattern_paths,
+    save_filtered_df=True,
     save_path=None,
     save_kwargs={},
     order=None,
@@ -109,6 +110,7 @@ def generate_go_heatmap(
     id_dict = {}
     pval_dict = {}
     unique_ids = set()
+    big_df = pd.DataFrame()
 
     # Extract filtered GO terms for each cluster
     for cluster_id, term_path in term_paths.items():
@@ -118,6 +120,22 @@ def generate_go_heatmap(
         unique_ids = unique_ids.union(set(go_ids))
         id_dict[cluster_id] = go_ids
         pval_dict[cluster_id] = p_val
+
+        # Aggregate GO terms for saving
+        save_columns = ["source", "native", "name", "p_value", "significant"]
+        save_df = pd.DataFrame(index=filtered_df.index)
+        save_df.loc[:, "lineage/cluster"] = cluster_id
+        save_df.loc[:, save_columns] = filtered_df.loc[:, save_columns]
+        big_df = big_df.append(save_df)
+
+    print(big_df)
+
+    if save_filtered_df:
+        big_df.to_excel(
+            os.path.join(save_path, f"GO_{len(term_paths)}.xlsx"),
+            sheet_name="GO",
+            index=False,
+        )
 
     # Generate df for cluster vs GO terms found
     go_df = pd.DataFrame(index=cluster_labels, columns=unique_ids)
@@ -165,7 +183,7 @@ def generate_go_heatmap(
 
     # Save
     if save_path is not None:
-        plt.savefig(save_path, **save_kwargs)
+        plt.savefig(os.path.join(save_path, f"GO_{len(term_paths)}.png"), **save_kwargs)
     plt.show()
 
     return ax

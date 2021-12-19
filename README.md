@@ -1,6 +1,6 @@
 ## Overview
----
-`MARGARET` is a computational tool for **Trajectory Inference** i.e. for inferring trajectories underlying biological developmental processes like cell-differentiation. More specifically:
+
+MARGARET is a computational tool for **Trajectory Inference** i.e. for inferring trajectories underlying biological developmental processes like cell-differentiation. More specifically:
 
 1. `MARGARET` utilizes a deep unsupervised metric learning-based approach for inferring low-dimensional cellular embeddings and cluster assignments at a single-cell (sc) level from omics-type data (e.g. transcriptomics (scRNA-seq), proteomics (CITE-seq), among many others)
 
@@ -19,7 +19,7 @@ An end-to-end workflow in MARGARET can be described as:
 For more details, refer to our manuscript "Inference of cell state transitions and cell fate plasticity from single-cell with MARGARET" at https://www.biorxiv.org/content/10.1101/2021.10.22.465455v1
 
 ## Installation
----
+
 
 A stable `pip` installable release for MARGARET will be made available shortly. For now, we recommend users to directly clone our stable `main` branch and set `margaret` as the working directory. All package dependencies for using MARGARET can be setup as follows: 
 
@@ -29,7 +29,7 @@ A stable `pip` installable release for MARGARET will be made available shortly. 
 Running `pipenv` for the first time will auto-create a project wide virtual environment :)
 
 ## What computational tasks can MARGARET be used for?
----
+
 
 `MARGARET` can be used for:
 
@@ -41,13 +41,13 @@ Running `pipenv` for the first time will auto-create a project wide virtual envi
 6. Quantifying cell-fate plasticity at a cell-level.
 
 ## Why should I use MARGARET?
----
+
 `MARGARET` supports several features that prior works in Trajectory Inference do not support. Moreover, on a diverse benchmark MARGARET outperforms prior methods in TI. We encourage interested readers to refer to our manuscript for more details on comparisons.
 
 <img src='assets/features.png'>
 
 ## Tutorials
----
+
 
 Check out the following Colab notebooks to get a flavor of a typical workflow in Trajectory Inference and `MARGARET`s capabilities:
 

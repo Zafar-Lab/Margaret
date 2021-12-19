@@ -8,15 +8,19 @@ verify_ssl = true
 [packages]
 numpy = "*"
 torch = "*"
-torchvision = "*"
 matplotlib = "*"
 tqdm = "*"
 pandas = "*"
 sklearn = "*"
 scipy = "*"
 click = "*"
+scanpy = "*"
+pygam = "*"
 sh = "*"
-iterative-stratification = "*"
+gprofiler-official = "*"
+phate = "*"
+louvain = "*"
+magic-impute = "*"
 
 [requires]
 python_version = "3.8"

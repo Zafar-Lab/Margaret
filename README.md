@@ -1,20 +1,27 @@
 ## Overview
 
-MARGARET is a computational tool for **Trajectory Inference** i.e. for inferring trajectories underlying biological developmental processes like cell-differentiation. More specifically:
+MARGARET is a computational tool for **Trajectory Inference** i.e. for inferring trajectories underlying biological developmental processes like cell-differentiation. More specifically the methodology can be sub-divided into three major steps:
 
-1. `MARGARET` utilizes a deep unsupervised metric learning-based approach for inferring low-dimensional cellular embeddings and cluster assignments at a single-cell (sc) level from omics-type data (e.g. transcriptomics (scRNA-seq), proteomics (CITE-seq), among many others)
+### Dimensionality Reduction
+`MARGARET` utilizes a deep unsupervised metric learning-based approach for inferring low-dimensional cellular embeddings and cluster assignments at a single-cell (sc) level from omics-type data (e.g. transcriptomics (scRNA-seq), proteomics (CITE-seq), among many others)
 
-2. `MARGARET` employs a novel measure of connectivity to assess connectivity between the inferred clusters in the first step and constructs a cluster-level undirected graph to represent a trajectory topology.
+<img src='assets/dr.png'>
 
-3. `MARGARET` then contructs a kNN graph between all cells (on a single-cell level) and **prunes** it with reference to the undirected graph computed previously. With a starting cell specified, `MARGARET` then assigns a **pseudotime** to each cell in the pruned kNN graph denoting the position of this cell in the underlying trajectory.
+### Connectedness between clusters
 
-4. Given the pseudptime for each cell and the undirected graph inferred in Step 2, `MARGARET` directs the edges in the undirected graph which represents the final underlying trajectory.
+`MARGARET` employs a novel measure of connectivity to assess connectivity between the inferred clusters in the first step and constructs a cluster-level undirected graph to represent a trajectory topology as shown in the following workflow.
 
-4. Different inferred components (like the trajectory, cell embeddings and clusters) can then be utilized for downstream tasks like Terminal state detection and cell-fate prediction.
+<img src='assets/ud.png'>
 
-An end-to-end workflow in MARGARET can be described as:
+### Pseudotime inference and Trajectory inference
 
-<img src='assets/method.png'>
+`MARGARET` then contructs a kNN graph between all cells (on a single-cell level) and **prunes** it with reference to the undirected graph computed previously. With a starting cell specified, `MARGARET` then assigns a **pseudotime** to each cell in the pruned kNN graph denoting the position of this cell in the underlying trajectory.
+
+Given the pseudotime for each cell and the undirected graph inferred in Step 2, `MARGARET` directs the edges in the undirected graph which represents the final underlying trajectory.
+
+Different inferred components (like the trajectory, cell embeddings and clusters) can then be utilized for downstream tasks like Terminal state detection and cell-fate prediction.
+
+<img src='assets/ti.png'>
 
 For more details, refer to our manuscript "Inference of cell state transitions and cell fate plasticity from single-cell with MARGARET" at https://www.biorxiv.org/content/10.1101/2021.10.22.465455v1
 

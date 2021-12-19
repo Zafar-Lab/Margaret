@@ -55,6 +55,10 @@ Check out the following Colab notebooks to get a flavor of a typical workflow in
 2. [MARGARET applied to scRNA-seq data for early human hematopoiesis](https://colab.research.google.com/drive/1F7B1ChAaLDx_U5drC9uazPc-I5TDD1tY?usp=sharing)
 3. [MARGARET applied to scRNA-seq data for early embryogenesis](https://colab.research.google.com/drive/1FPPAZiVPiBXmakzmGkBsVABrjUW6YfM-?usp=sharing)
 
+
+## Contributing
+In case of any bug reports, enhancement requests, general questions, and other contributions, please create an issue. For more substantial contributions, please fork this repo, push your changes to your fork, and submit a pull request with a good commit message.
+
 ## Authors
 
 Kushagra Pandey, Hamim Zafar

@@ -9,7 +9,6 @@ import re
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import torchvision.transforms as T
 
 from ast import literal_eval
 from PIL import Image

@@ -2,9 +2,13 @@ import torch
 from torch.utils.data import Dataset
 
 
-# Creates a torch dataset from  a numpy array
 class NpDataset(Dataset):
     def __init__(self, X):
+        """Creates a torch dataset from  a numpy array
+
+        Args:
+            X ([np.ndarray]): Numpy array which needs to be mapped as a tensor
+        """
         self.X = torch.Tensor(X)
         self.shape = self.X.shape
 
